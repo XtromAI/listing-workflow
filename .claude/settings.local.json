@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\creks\\\\Documents\\\\Repositories\\\\listing-workflow\" -Force)",
+      "Bash(Select-Object -Property Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Read(//c/Users/creks/.claude/plans//**)",
+      "Read(//c/Users/creks/.claude/plans/**)",
+      "Read(//c/Users/creks/.claude/projects/c--Users-creks-Documents-Repositories-listing-workflow/memory//**)",
+      "Read(//c/Users/creks/.claude/projects/c--Users-creks-Documents-Repositories-listing-workflow/memory/**)",
+      "Bash(ls -la \"c:/Users/creks/.claude/projects/c--Users-creks-Documents-Repositories-listing-workflow/memory/\" 2>/dev/null || echo \"Memory directory not found\")",
+      "Bash(Test-Path \"c:\\\\Users\\\\creks\\\\.claude\\\\projects\\\\c--Users-creks-Documents-Repositories-listing-workflow\\\\memory\\\\\" -PathType Container)"
+    ]
+  }
+}

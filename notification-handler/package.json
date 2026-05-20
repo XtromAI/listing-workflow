@@ -1,0 +1,13 @@
+{
+  "name": "ebay-notification-handler",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=ebayNotifications",
+    "deploy:first": "gcloud functions deploy ebay-notifications --gen2 --runtime=nodejs22 --trigger-http --allow-unauthenticated --region=us-central1 --entry-point=ebayNotifications --source=.",
+    "deploy": "gcloud functions deploy ebay-notifications --gen2 --runtime=nodejs22 --trigger-http --allow-unauthenticated --region=us-central1 --entry-point=ebayNotifications --source=. --set-env-vars=EBAY_VERIFICATION_TOKEN=%EBAY_VERIFICATION_TOKEN%,NOTIFICATION_ENDPOINT_URL=%NOTIFICATION_ENDPOINT_URL%"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.0.0"
+  }
+}
