@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { getAccessToken, getEbayBaseUrl } from "../auth/oauth.js";
 
 export const definition = {
@@ -12,7 +12,7 @@ export const definition = {
       description: { type: "string", description: "Item description (HTML)" },
       condition: {
         type: "string",
-        enum: ["NEW", "LIKE_NEW", "VERY_GOOD", "GOOD", "ACCEPTABLE", "FOR_PARTS_OR_NOT_WORKING"],
+        enum: ["NEW", "LIKE_NEW", "NEW_OTHER", "NEW_WITH_DEFECTS", "USED_EXCELLENT", "USED_VERY_GOOD", "USED_GOOD", "USED_ACCEPTABLE", "FOR_PARTS_OR_NOT_WORKING"],
         description: "Item condition code",
       },
       conditionDescription: {
@@ -22,14 +22,14 @@ export const definition = {
       imageUrls: {
         type: "array",
         items: { type: "string" },
-        description: "Hosted image URLs from ebay_upload_image",
+        description: "Hosted image URLs from ebay_upload_image (optional — omit to create without images)",
       },
       itemSpecifics: {
         type: "object",
         description: "Key/value pairs e.g. { Brand: 'Sony', Model: 'WH-1000XM4' }",
       },
     },
-    required: ["sku", "title", "description", "condition", "imageUrls"],
+    required: ["sku", "title", "description", "condition"],
   },
 };
 
@@ -61,23 +61,33 @@ export async function handler(args: Record<string, unknown>) {
 
   const token = await getAccessToken();
 
-  await axios.put(
-    `${getEbayBaseUrl()}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`,
-    {
-      product: { title, description, imageUrls, aspects },
-      condition,
-      ...(conditionDescription ? { conditionDescription } : {}),
-      availability: {
-        shipToLocationAvailability: { quantity: 1 },
+  try {
+    await axios.put(
+      `${getEbayBaseUrl()}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`,
+      {
+        product: { title, description, ...(imageUrls?.length ? { imageUrls } : {}), aspects },
+        condition,
+        ...(conditionDescription ? { conditionDescription } : {}),
+        availability: {
+          shipToLocationAvailability: { quantity: 1 },
+        },
       },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (err) {
+    const axiosErr = err as AxiosError;
+    if (axiosErr.response) {
+      throw new Error(
+        `eBay Inventory API ${axiosErr.response.status}: ${JSON.stringify(axiosErr.response.data)}`
+      );
     }
-  );
+    throw err;
+  }
 
   return { success: true };
 }
