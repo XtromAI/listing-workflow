@@ -7,6 +7,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import * as getCategories from "./tools/getCategories.js";
+import * as getCategoryRequirements from "./tools/getCategoryRequirements.js";
 import * as searchByImage from "./tools/searchByImage.js";
 import * as visionDetect from "./tools/visionDetect.js";
 import * as uploadImage from "./tools/uploadImage.js";
@@ -16,6 +17,7 @@ import * as publishOffer from "./tools/publishOffer.js";
 
 const tools = [
   getCategories,
+  getCategoryRequirements,
   searchByImage,
   visionDetect,
   uploadImage,

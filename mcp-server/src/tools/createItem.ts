@@ -28,8 +28,12 @@ export const definition = {
         type: "object",
         description: "Key/value pairs e.g. { Brand: 'Sony', Model: 'WH-1000XM4' }",
       },
+      weightLbs: {
+        type: "number",
+        description: "Estimated shipping weight in pounds — required by eBay to publish",
+      },
     },
-    required: ["sku", "title", "description", "condition"],
+    required: ["sku", "title", "description", "condition", "weightLbs"],
   },
 };
 
@@ -42,6 +46,7 @@ export async function handler(args: Record<string, unknown>) {
     conditionDescription,
     imageUrls,
     itemSpecifics,
+    weightLbs,
   } = args as {
     sku: string;
     title: string;
@@ -50,6 +55,7 @@ export async function handler(args: Record<string, unknown>) {
     conditionDescription?: string;
     imageUrls: string[];
     itemSpecifics?: Record<string, string>;
+    weightLbs: number;
   };
 
   const aspects: Record<string, string[]> = {};
@@ -68,6 +74,9 @@ export async function handler(args: Record<string, unknown>) {
         product: { title, description, ...(imageUrls?.length ? { imageUrls } : {}), aspects },
         condition,
         ...(conditionDescription ? { conditionDescription } : {}),
+        packageWeightAndSize: {
+          weight: { value: weightLbs, unit: "POUND" },
+        },
         availability: {
           shipToLocationAvailability: { quantity: 1 },
         },

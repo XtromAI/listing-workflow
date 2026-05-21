@@ -35,26 +35,36 @@ Use web search to find:
 Call `ebay_get_category_suggestions` using a concise version of the item title.
 Select the most specific applicable category.
 
-## STEP 5 — DRAFT THE LISTING
+## STEP 5 — GET CATEGORY REQUIREMENTS
+
+Call `ebay_get_category_requirements` with the selected `categoryId`.
+
+This returns two critical things:
+- `requiredAspects` — item specifics that eBay will reject the listing without (e.g. Color, Brand, Type). You MUST collect a value for every required aspect before drafting.
+- `validConditions` — the `inventoryApiCondition` values accepted by this category. You MUST use one of these exact strings when setting condition — do NOT guess. Some categories (e.g. antiques, collectibles) only accept `NEW`, `NEW_OTHER`, and `USED_EXCELLENT`; granular values like `USED_VERY_GOOD` will be rejected.
+
+If any required aspects are unknown, ask the user before proceeding.
+
+## STEP 6 — DRAFT THE LISTING
 
 Compile research into a draft:
 
 ```
 TITLE: [80 chars max — Brand + Model + key attributes + condition keyword]
 CATEGORY: [name — ID]
-CONDITION: [one of: NEW | LIKE_NEW | VERY_GOOD | GOOD | ACCEPTABLE | FOR_PARTS_OR_NOT_WORKING]
+CONDITION: [use inventoryApiCondition value from Step 5 — e.g. USED_EXCELLENT]
 CONDITION NOTES: [1-2 sentences about actual visible state]
 PRICE: $[recommended] (sold range: $[low]–$[high])
+WEIGHT: [estimated shipping weight in pounds]
 DESCRIPTION:
 [HTML — 3-4 paragraphs: what it is, key features, condition detail, what's included, shipping note]
 
 ITEM SPECIFICS:
-- Brand: [value]
-- Model: [value]
-- [Any other category-relevant specifics]
+[List every required aspect from Step 5, plus any other relevant ones]
+- [Aspect name]: [value]
 ```
 
-## STEP 6 — PRESENT FOR APPROVAL
+## STEP 7 — PRESENT FOR APPROVAL
 
 Show the complete draft and ask:
 
@@ -62,7 +72,7 @@ Show the complete draft and ask:
 
 Wait for explicit approval before proceeding. Do not call any posting tools yet.
 
-## STEP 7 — UPLOAD AND POST (only after explicit user approval)
+## STEP 8 — UPLOAD AND POST (only after explicit user approval)
 
 For each photo file path provided:
 - Call `ebay_upload_image` to get the hosted image URL.
@@ -72,7 +82,8 @@ Generate SKU: `item-[YYYYMMDD]-[random 4 digits]`
 Call `ebay_create_inventory_item` with:
 - `sku`, `title`, `description`, `condition`, `conditionDescription`
 - `imageUrls` (all from `ebay_upload_image`)
-- `itemSpecifics` (Brand, Model, and any other specifics from Step 5)
+- `itemSpecifics` (all required aspects from Step 5, plus Brand, Model, and any others from the draft)
+- `weightLbs` — estimated shipping weight in pounds (required by eBay to publish)
 
 Call `ebay_create_offer` with:
 - `sku`, `categoryId`, `price`, `currency` (USD), `quantity` (1)
@@ -80,6 +91,24 @@ Call `ebay_create_offer` with:
 
 Call `ebay_publish_offer` with the `offerId` from the previous step.
 
-## STEP 8 — CONFIRM
+## STEP 9 — ARCHIVE PHOTOS
 
-Show the user the live listing URL. Offer to list another item.
+After a successful publish, move the photos into a dedicated subfolder so they are organized alongside the listing record.
+
+1. Sanitize the item title for use as a folder name: lowercase, replace spaces with hyphens, remove any characters that are invalid in Windows/Mac folder names (`\ / : * ? " < > |`), trim to 50 characters.
+2. Retrieve the `listingId` returned by `ebay_publish_offer`.
+3. Construct the folder name: `[sanitized-title]_[listingId]`  
+   Example: `apple-iphone-13-pro-128gb-unlocked_387654321012`
+4. Create the folder at `[project-root]\listings\[folder-name]` using PowerShell:
+   ```powershell
+   New-Item -ItemType Directory -Force -Path "C:\Users\creks\Documents\Repositories\listing-workflow\listings\[folder-name]"
+   ```
+5. Move each photo file into the new folder:
+   ```powershell
+   Move-Item -Path "[original-photo-path]" -Destination "C:\Users\creks\Documents\Repositories\listing-workflow\listings\[folder-name]\"
+   ```
+6. Confirm all files moved successfully before proceeding.
+
+## STEP 10 — CONFIRM
+
+Show the user the live listing URL and the path to the archived photos folder. Offer to list another item.
