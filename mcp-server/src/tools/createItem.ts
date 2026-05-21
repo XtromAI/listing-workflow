@@ -76,6 +76,7 @@ export async function handler(args: Record<string, unknown>) {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          "Content-Language": "en-US",
         },
       }
     );

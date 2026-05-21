@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { getAccessToken, getEbayBaseUrl } from "../auth/oauth.js";
 
 export const definition = {
@@ -29,34 +29,51 @@ export async function handler(args: Record<string, unknown>) {
   };
 
   const token = await getAccessToken();
-  const { EBAY_FULFILLMENT_POLICY_ID, EBAY_PAYMENT_POLICY_ID, EBAY_RETURN_POLICY_ID } =
-    process.env;
+  const {
+    EBAY_FULFILLMENT_POLICY_ID,
+    EBAY_PAYMENT_POLICY_ID,
+    EBAY_RETURN_POLICY_ID,
+    EBAY_MERCHANT_LOCATION_KEY,
+  } = process.env;
 
-  const response = await axios.post(
-    `${getEbayBaseUrl()}/sell/inventory/v1/offer`,
-    {
-      sku,
-      marketplaceId: "EBAY_US",
-      format: "FIXED_PRICE",
-      listingDescription,
-      pricingSummary: {
-        price: { value: price.toString(), currency },
+  let response;
+  try {
+    response = await axios.post(
+      `${getEbayBaseUrl()}/sell/inventory/v1/offer`,
+      {
+        sku,
+        marketplaceId: "EBAY_US",
+        format: "FIXED_PRICE",
+        listingDescription,
+        pricingSummary: {
+          price: { value: price.toString(), currency },
+        },
+        availableQuantity: quantity ?? 1,
+        categoryId,
+        merchantLocationKey: EBAY_MERCHANT_LOCATION_KEY,
+        listingPolicies: {
+          fulfillmentPolicyId: EBAY_FULFILLMENT_POLICY_ID,
+          paymentPolicyId: EBAY_PAYMENT_POLICY_ID,
+          returnPolicyId: EBAY_RETURN_POLICY_ID,
+        },
       },
-      availableQuantity: quantity ?? 1,
-      categoryId,
-      listingPolicies: {
-        fulfillmentPolicyId: EBAY_FULFILLMENT_POLICY_ID,
-        paymentPolicyId: EBAY_PAYMENT_POLICY_ID,
-        returnPolicyId: EBAY_RETURN_POLICY_ID,
-      },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Content-Language": "en-US",
+        },
+      }
+    );
+  } catch (err) {
+    const axiosErr = err as AxiosError;
+    if (axiosErr.response) {
+      throw new Error(
+        `eBay Offer API ${axiosErr.response.status}: ${JSON.stringify(axiosErr.response.data)}`
+      );
     }
-  );
+    throw err;
+  }
 
   return { offerId: response.data.offerId as string };
 }
