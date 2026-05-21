@@ -15,7 +15,14 @@ import * as createItem from "./tools/createItem.js";
 import * as createOffer from "./tools/createOffer.js";
 import * as publishOffer from "./tools/publishOffer.js";
 
+import * as etsyGetTaxonomyNodes from "./tools/etsy/getTaxonomyNodes.js";
+import * as etsyGetTaxonomyNodeProperties from "./tools/etsy/getTaxonomyNodeProperties.js";
+import * as etsyCreateDraftListing from "./tools/etsy/createDraftListing.js";
+import * as etsyUploadListingImage from "./tools/etsy/uploadListingImage.js";
+import * as etsyPublishListing from "./tools/etsy/publishListing.js";
+
 const tools = [
+  // eBay tools
   getCategories,
   getCategoryRequirements,
   searchByImage,
@@ -24,6 +31,12 @@ const tools = [
   createItem,
   createOffer,
   publishOffer,
+  // Etsy tools
+  etsyGetTaxonomyNodes,
+  etsyGetTaxonomyNodeProperties,
+  etsyCreateDraftListing,
+  etsyUploadListingImage,
+  etsyPublishListing,
 ];
 
 const handlerMap = new Map(tools.map((t) => [t.definition.name, t.handler]));
