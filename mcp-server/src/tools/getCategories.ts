@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getAccessToken, getEbayBaseUrl } from "../auth/oauth";
+import { getAccessToken, getEbayBaseUrl } from "../auth/oauth.js";
 
 export const definition = {
   name: "ebay_get_category_suggestions",

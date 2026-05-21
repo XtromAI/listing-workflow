@@ -1,6 +1,6 @@
 import fs from "fs";
 import axios from "axios";
-import { getAccessToken, getEbayBaseUrl } from "../auth/oauth";
+import { getAccessToken, getEbayBaseUrl } from "../auth/oauth.js";
 
 export const definition = {
   name: "ebay_search_by_image",

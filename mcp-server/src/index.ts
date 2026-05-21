@@ -1,18 +1,18 @@
 import "dotenv/config";
 import { Server } from "@modelcontextprotocol/sdk/server";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types";
+} from "@modelcontextprotocol/sdk/types.js";
 
-import * as getCategories from "./tools/getCategories";
-import * as searchByImage from "./tools/searchByImage";
-import * as visionDetect from "./tools/visionDetect";
-import * as uploadImage from "./tools/uploadImage";
-import * as createItem from "./tools/createItem";
-import * as createOffer from "./tools/createOffer";
-import * as publishOffer from "./tools/publishOffer";
+import * as getCategories from "./tools/getCategories.js";
+import * as searchByImage from "./tools/searchByImage.js";
+import * as visionDetect from "./tools/visionDetect.js";
+import * as uploadImage from "./tools/uploadImage.js";
+import * as createItem from "./tools/createItem.js";
+import * as createOffer from "./tools/createOffer.js";
+import * as publishOffer from "./tools/publishOffer.js";
 
 const tools = [
   getCategories,

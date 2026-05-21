@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import axios from "axios";
-import { getAccessToken, getEbayBaseUrl } from "../auth/oauth";
+import { getAccessToken, getEbayBaseUrl } from "../auth/oauth.js";
 
 export const definition = {
   name: "ebay_upload_image",
