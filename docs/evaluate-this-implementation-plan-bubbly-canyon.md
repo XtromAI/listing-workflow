@@ -49,9 +49,8 @@ listing-workflow/
 │   ├── package.json
 │   └── tsconfig.json
 ├── notification-handler/         (Google Cloud Function — eBay compliance)
-│   ├── index.ts
-│   ├── package.json
-│   └── tsconfig.json
+│   ├── index.js
+│   └── package.json
 ├── cowork-skill/
 │   └── ebay-listing-skill.md
 └── docs/
@@ -68,21 +67,29 @@ eBay requires all keysets — including personal ones — to register an HTTPS e
 
 #### Deploy the Cloud Function
 
-Create `notification-handler/index.ts`:
+The handler is plain JavaScript (no TypeScript build step needed). The function name registered in code must be `ebayNotifications` (camelCase) — Cloud Functions gen2 converts the hyphenated service name to camelCase when resolving the entry point default, and `--entry-point` must match explicitly.
 
-```typescript
-import { http } from '@google-cloud/functions-framework';
-import * as crypto from 'crypto';
+Create `notification-handler/index.js`:
 
-http('ebayNotifications', (req, res) => {
-  if (req.method === 'GET') {
-    const challenge = req.query.challenge_code as string;
-    const hash = crypto.createHash('sha256')
-      .update(challenge + process.env.EBAY_VERIFICATION_TOKEN! + process.env.NOTIFICATION_ENDPOINT_URL!)
-      .digest('hex');
-    return res.status(200).json({ challengeResponse: hash });
+```javascript
+const functions = require("@google-cloud/functions-framework");
+const crypto = require("crypto");
+
+functions.http("ebayNotifications", (req, res) => {
+  if (req.method === "GET") {
+    const challenge = req.query.challenge_code;
+    if (!challenge) { res.status(400).send("Missing challenge_code"); return; }
+    const token = process.env.EBAY_VERIFICATION_TOKEN;
+    const endpoint = process.env.NOTIFICATION_ENDPOINT_URL;
+    if (!token || !endpoint) { res.status(500).send("Missing env vars"); return; }
+    const hash = crypto.createHash("sha256")
+      .update(challenge + token + endpoint)
+      .digest("hex");
+    res.status(200).json({ challengeResponse: hash });
+    return;
   }
-  res.status(200).send('OK');
+  // POST: account deletion notification — no user data stored, nothing to delete
+  res.status(200).send("OK");
 });
 ```
 
@@ -90,60 +97,57 @@ Create `notification-handler/package.json`:
 
 ```json
 {
+  "name": "ebay-notification-handler",
+  "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=ebayNotifications",
+    "deploy:first": "gcloud functions deploy ebay-notifications --gen2 --runtime=nodejs22 --trigger-http --allow-unauthenticated --region=us-central1 --entry-point=ebayNotifications --source=.",
+    "deploy": "gcloud functions deploy ebay-notifications --gen2 --runtime=nodejs22 --trigger-http --allow-unauthenticated --region=us-central1 --entry-point=ebayNotifications --source=. --set-env-vars=EBAY_VERIFICATION_TOKEN=%EBAY_VERIFICATION_TOKEN%,NOTIFICATION_ENDPOINT_URL=%NOTIFICATION_ENDPOINT_URL%"
+  },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.0.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
-  },
-  "scripts": { "build": "tsc" }
+  }
 }
 ```
 
-Set `notification-handler/tsconfig.json`: target `ES2020`, `module: commonjs`, `outDir: "./"`, `strict: true`.
+Create `notification-handler/.gitignore`:
+
+```
+node_modules/
+```
 
 #### Two-Step Deploy (URL is only known after first deploy)
 
-```bash
+```powershell
 cd notification-handler
 npm install
-npm run build
 
 # Step 1 — deploy without env vars to get the function URL
-gcloud functions deploy ebay-notifications \
-  --gen2 \
-  --runtime=nodejs22 \
-  --trigger-http \
-  --allow-unauthenticated \
-  --region=us-central1 \
-  --source=.
+npm run deploy:first
 ```
 
-Copy the URL from the output (format: `https://us-central1-PROJECT_ID.cloudfunctions.net/ebay-notifications`).
+The deployed URL will be in the format `https://ebay-notifications-HASH-uc.a.run.app` (Cloud Run URL, not cloudfunctions.net). Copy it from the output.
+
+**Note:** You must also enable billing on the Google Cloud project before deploying — Cloud Functions gen2 requires a linked billing account even within the free tier (2M invocations/month, $0 for this workload).
 
 #### Register in eBay Developer Portal
 
 1. Go to **My Account > Alerts & Notifications > Marketplace Account Deletion**.
-2. Enter the function URL and choose a random verification token string (save it — you'll need it in the next step).
-3. Save. eBay will send a verification GET request to your endpoint.
+2. Enter the function URL from Step 1.
+3. Generate a random verification token (e.g. in PowerShell: `-join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | % {[char]$_})`).
+4. Enter the token in the portal and save. Do not click validate yet.
 
 #### Redeploy with Env Vars
 
-```bash
-# Step 2 — redeploy with the token and URL so the challenge hash works
-gcloud functions deploy ebay-notifications \
-  --gen2 \
-  --runtime=nodejs22 \
-  --trigger-http \
-  --allow-unauthenticated \
-  --region=us-central1 \
-  --source=. \
-  --set-env-vars="EBAY_VERIFICATION_TOKEN=your_random_token,NOTIFICATION_ENDPOINT_URL=https://YOUR_FUNCTION_URL"
+```powershell
+# Step 2 — set env vars in your shell, then redeploy
+$env:EBAY_VERIFICATION_TOKEN = "the_token_you_entered_in_ebay"
+$env:NOTIFICATION_ENDPOINT_URL = "https://ebay-notifications-HASH-uc.a.run.app"
+npm run deploy
 ```
 
-eBay retries the verification challenge — your function responds correctly, the keyset becomes compliant and is enabled.
+Once the redeploy completes, go back to the eBay portal and click **Validate**. The function responds correctly to the challenge and the keyset becomes compliant and enabled.
 
 ---
 
@@ -166,7 +170,7 @@ Do this first — the API key is needed when coding the MCP server.
 
 #### Configure OAuth Redirect URI
 1. **User Tokens > Get a Token from eBay via Your Application**.
-2. Add a **RuName** with redirect URI `https://localhost`.
+2. Add a **RuName**. In the "Your auth accepted URL" field, enter `https://github.com` — eBay rejects `https://localhost` in this form. After authorization, GitHub will load but the `code` parameter will be visible in the browser URL bar.
 3. Save the RuName string.
 
 #### Required OAuth Scopes
@@ -178,6 +182,8 @@ https://api.ebay.com/oauth/api_scope/sell.inventory.readonly
 No others are needed. `sell.account` and `sell.fulfillment` are not required by any tool.
 
 #### Complete the OAuth Flow (One-Time)
+**Important:** The authorization code expires in ~5 minutes. Prepare the token exchange command (step 3 below) before clicking authorize, so you can run it immediately after copying the code.
+
 1. Construct the authorization URL and open it in your browser:
    ```
    https://auth.ebay.com/oauth2/authorize
@@ -186,14 +192,18 @@ No others are needed. `sell.account` and `sell.fulfillment` are not required by 
      &response_type=code
      &scope=https://api.ebay.com/oauth/api_scope%20https://api.ebay.com/oauth/api_scope/sell.inventory
    ```
-2. Authorize the app. Copy the `code` from the redirect URL.
-3. Exchange for tokens:
-   ```bash
-   curl -X POST https://api.ebay.com/identity/v1/oauth2/token \
-     -H "Content-Type: application/x-www-form-urlencoded" \
-     -H "Authorization: Basic BASE64(CLIENT_ID:CLIENT_SECRET)" \
-     -d "grant_type=authorization_code&code=YOUR_CODE&redirect_uri=YOUR_RUNAME"
+2. Authorize the app. Copy the `code` from the redirect URL (it will be in the GitHub URL bar as `https://github.com/?code=...`).
+3. Exchange for tokens (PowerShell):
+   ```powershell
+   $clientId = "YOUR_CLIENT_ID"
+   $clientSecret = "YOUR_CLIENT_SECRET"
+   $credentials = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${clientId}:${clientSecret}"))
+   $code = "YOUR_CODE_URL_DECODED"
+   $runame = "YOUR_RUNAME"
+   $body = "grant_type=authorization_code&code=$([Uri]::EscapeDataString($code))&redirect_uri=$runame"
+   Invoke-RestMethod -Uri "https://api.ebay.com/identity/v1/oauth2/token" -Method POST -Headers @{ Authorization = "Basic $credentials"; "Content-Type" = "application/x-www-form-urlencoded" } -Body $body | ConvertTo-Json
    ```
+   The `code` in the URL is URL-encoded — paste the raw value from the URL bar and PowerShell will re-encode it correctly via `[Uri]::EscapeDataString`.
 4. Save the `refresh_token` — this is your long-lived credential.
 
 #### Enable Business Policies
@@ -207,8 +217,12 @@ Find the IDs in the eBay Seller Hub UI:
 
 These go into your `.env` (see Phase 2.2).
 
-#### Apply for Browse API (Optional, for image search)
-The `searchByImage` endpoint requires special access. Submit a request in the developer portal under **APIs > Browse API**. Until approved, the skill falls back to Google Vision + web search — no functionality is lost.
+#### Apply for Browse API (Skipped — not self-service)
+The `searchByImage` endpoint is part of the Buy Browse API, which requires production eligibility approval, a formal review by eBay support, and potentially a signed contract. There is no self-service application form in the developer portal. Additional notes:
+- Uses an **Application token** (client credentials grant), not a User token — the implementation would need separate token handling if added later
+- Supported in sandbox freely; production access is gated
+
+**Decision:** Skip for now. The skill uses Google Vision + web search as the image identification path, and no functionality is lost without Browse API access. Revisit only if eBay grants access through a future business relationship.
 
 ---
 
