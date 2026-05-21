@@ -5,8 +5,10 @@
     "outDir": "./build",
     "rootDir": "./src",
     "strict": true,
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "types": ["node"],
     "declaration": true,
     "sourceMap": true
   },
