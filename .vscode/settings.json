@@ -1,0 +1,5 @@
+{
+  "vitest.enable": true,
+  "vitest.commandLine": "npm run test --",
+  "vitest.rootConfig": "mcp-server/vitest.config.ts"
+}

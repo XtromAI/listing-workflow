@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Vitest Tests (mcp-server)",
+      "autoAttachChildProcesses": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/mcp-server",
+      "program": "${workspaceFolder}/mcp-server/node_modules/vitest/vitest.mjs",
+      "args": [
+        "run"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal"
+    }
+  ]
+}
