@@ -168,23 +168,18 @@ Call `etsy_publish_listing` with the `listingId`. Save the returned `listingUrl`
 
 ## STEP 8 — ARCHIVE PHOTOS
 
-After all platforms are successfully published, move the photos into organized subfolders.
+After all platforms are successfully published, move the photos into a single folder under `listings\`.
 
 1. Sanitize the item title: lowercase, replace spaces with hyphens, remove characters invalid in folder names (`\ / : * ? " < > |`), trim to 50 characters.
-
-**If posted to eBay:**
+2. Use the listing ID from whichever platform was posted to (if both, use the eBay listing ID).
+3. Construct the folder name: `[sanitized-title]_[listingId]`  
+   Example: `apple-iphone-13-pro-128gb-unlocked_387654321012`
+4. Create the folder and move all photos into it:
 ```powershell
-New-Item -ItemType Directory -Force -Path "C:\Users\creks\Documents\Repositories\listing-workflow\listings\ebay\[sanitized-title]_[ebayListingId]"
-Copy-Item -Path "[photo-path]" -Destination "...\ebay\[sanitized-title]_[ebayListingId]\"
+New-Item -ItemType Directory -Force -Path "C:\Users\creks\Documents\Repositories\listing-workflow\listings\[folder-name]"
+Move-Item -Path "[photo-path]" -Destination "C:\Users\creks\Documents\Repositories\listing-workflow\listings\[folder-name]\"
 ```
-
-**If posted to Etsy:**
-```powershell
-New-Item -ItemType Directory -Force -Path "C:\Users\creks\Documents\Repositories\listing-workflow\listings\etsy\[sanitized-title]_etsy_[etsyListingId]"
-Move-Item -Path "[photo-path]" -Destination "...\etsy\[sanitized-title]_etsy_[etsyListingId]\"
-```
-
-If posted to both platforms, copy to the eBay folder first, then move the originals to the Etsy folder (so each has a copy of the photos). Confirm all files are in place before continuing.
+5. Confirm all files moved successfully before continuing.
 
 ## STEP 9 — CONFIRM
 
@@ -222,4 +217,4 @@ Show the user each live listing URL (one per platform). Show the archive folder 
 | **Description style** | HTML, spec-focused | Plain text, story-driven |
 | **Required metadata** | Item specifics per category | `whoMade` + `whenMade` on every listing |
 | **Discovery** | Title keywords + item specifics | Tags (up to 13) + title keywords |
-| **Archive path** | `listings\ebay\[title]_[id]` | `listings\etsy\[title]_etsy_[id]` |
+| **Archive path** | `listings\[title]_[id]` | `listings\[title]_[id]` |
