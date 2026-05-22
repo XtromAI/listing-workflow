@@ -305,17 +305,125 @@ You should see both the eBay tools and the five Etsy tools: `etsy_get_taxonomy_n
 `etsy_get_taxonomy_node_properties`, `etsy_create_draft_listing`, `etsy_upload_listing_image`,
 `etsy_publish_listing`.
 
-### 6.4 Test a draft listing end-to-end
+### 6.4 Test all tools end-to-end
 
-> **You** — in a Claude Desktop conversation, then verify in Etsy Shop Manager
+> **You** — open a Claude Desktop conversation and have a photo of a low-value item ready
 
-In Claude Desktop, ask:
+Copy the absolute path to a test photo (JPEG or PNG). You will substitute it for
+`C:\path\to\test-image.jpg` in the prompts below.
+
+Run each prompt in the **same Claude Desktop conversation** so Claude carries context
+(category IDs, SKUs, offer IDs, listing IDs) between steps.
+
+---
+
+#### eBay — step by step
+
+**Step 1 — Identify the item**
 ```
-Create a draft Etsy listing for [describe a low-value item]. Keep it as a draft — do not publish.
+Use google_vision_web_detection on C:\path\to\test-image.jpg and tell me what the item is.
 ```
+✓ Expect a list of `bestGuessLabels` and `webEntities`.
 
-Then verify the draft appears in [Etsy Shop Manager → Listings → Drafts](https://www.etsy.com/your/shops/listings?state=draft).
-Delete the test draft manually afterwards.
+**Step 2 — Find a category**
+```
+Use ebay_get_category_suggestions to find the best eBay category for [item name from Step 1].
+Show me the top three results with their category IDs.
+```
+✓ Expect a list of categoryId / categoryName / fullPath entries.
+
+**Step 3 — Get category requirements**
+```
+Use ebay_get_category_requirements on category ID [ID from Step 2].
+Show me the required item specifics and valid condition values.
+```
+✓ Expect `requiredAspects` and `validConditions` arrays.
+
+**Step 4 — Upload the image**
+```
+Use ebay_upload_image to upload C:\path\to\test-image.jpg and give me the hosted URL.
+```
+✓ Expect a `imageUrl` pointing to `i.ebayimg.com`.
+
+**Step 5 — Create the inventory item**
+```
+Use ebay_create_inventory_item to create a test inventory item with:
+- SKU: test-sku-001
+- Title: Test Item — Do Not Buy
+- Description: <p>Integration test listing — ignore.</p>
+- Condition: USED_GOOD
+- imageUrls: [the URL from Step 4]
+- weightLbs: 1
+- itemSpecifics: use the required aspects from Step 3 with placeholder values
+```
+✓ Expect `{ "success": true }`.
+
+**Step 6 — Create an offer**
+```
+Use ebay_create_offer with:
+- SKU: test-sku-001
+- categoryId: [ID from Step 2]
+- price: 0.99
+- currency: USD
+- listingDescription: <p>Integration test listing — ignore.</p>
+```
+✓ Expect an `offerId`.
+
+**Step 7 — Publish the offer**
+```
+Use ebay_publish_offer with the offerId from Step 6.
+```
+✓ Expect a `listingId` and a `listingUrl`. Open the URL to confirm the listing is live.
+
+> **You** — immediately end the listing
+>
+> Go to [eBay My eBay → Active Listings](https://www.ebay.com/mys/active), find
+> "Test Item — Do Not Buy", and end the listing manually.
+
+---
+
+#### Etsy — step by step
+
+Open a **new Claude Desktop conversation** (or continue the same one — Etsy steps are
+independent of eBay).
+
+**Step 8 — Browse the taxonomy**
+```
+Use etsy_get_taxonomy_nodes and show me the top-level categories.
+```
+✓ Expect a list of taxonomy nodes with `id` and `name` fields.
+
+**Step 9 — Get node properties**
+```
+Use etsy_get_taxonomy_node_properties on taxonomy ID [ID of a relevant category from Step 8].
+Show me the available attributes.
+```
+✓ Expect a `results` array of property objects.
+
+**Step 10 — Create a draft listing**
+```
+Use etsy_create_draft_listing to create a test listing with a low price. Keep it as a draft.
+Use the taxonomy ID from Step 8, a whenMade of "2020_2024", and whoMade of "i_did".
+Title: "Test Listing — Do Not Buy"
+```
+✓ Expect a `listing_id`. Note it for the next two steps.
+
+**Step 11 — Upload an image**
+```
+Use etsy_upload_listing_image to attach C:\path\to\test-image.jpg to listing ID [ID from Step 10].
+```
+✓ Expect a `listing_image_id`.
+
+**Step 12 — Publish the listing**
+```
+Use etsy_publish_listing to publish listing ID [ID from Step 10].
+```
+✓ Expect `{ "state": "active" }`.
+
+> **You** — immediately delete the listing
+>
+> Go to [Etsy Shop Manager → Listings](https://www.etsy.com/your/shops/listings),
+> find "Test Listing — Do Not Buy", and delete it.
 
 ---
 
