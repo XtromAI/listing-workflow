@@ -1,7 +1,8 @@
 # Etsy API Setup — Authentication & Configuration Guide
 
-This guide covers everything needed to authenticate the Etsy MCP tools and start
-creating listings programmatically. Follow the steps in order.
+Work through this document section by section with Claude Code open. Each step is clearly
+labelled **You** (browser or manual action required) or **Claude Code** (Claude Code handles
+it — just tell it to proceed).
 
 ---
 
@@ -10,9 +11,9 @@ creating listings programmatically. Follow the steps in order.
 - **No sandbox environment.** Etsy has no test environment — all API calls hit production.
   Create draft listings and delete them manually to test without exposing them publicly.
 - **Rotating refresh tokens.** Etsy invalidates each refresh token after it is used. The
-  server logs the new token to stderr on every refresh (see [Handling Token Rotation](#5-handling-refresh-token-rotation)).
-- **PKCE OAuth flow.** Etsy uses OAuth 2.0 with PKCE (no client secret required). A small
-  helper script handles the one-time setup.
+  server logs the new token to stderr on every refresh (see [Phase 5](#phase-5--handling-refresh-token-rotation)).
+- **PKCE OAuth flow.** Etsy uses OAuth 2.0 with PKCE (no client secret required). A helper
+  script handles the one-time setup.
 - **Images after listing creation.** Unlike eBay (images first → get URL → create item),
   Etsy requires a listing ID before images can be attached.
 - **Single app key.** The Etsy App Key ("keystring") acts as both the `x-api-key` header
@@ -22,157 +23,132 @@ creating listings programmatically. Follow the steps in order.
 
 ## Phase 1 — Create an Etsy Developer App
 
-### 1.1 Register as an Etsy Developer
+> **You** — browser required, Etsy website
 
 1. Sign in at [https://www.etsy.com/developers](https://www.etsy.com/developers) using your
    Etsy seller account.
 2. Click **Create a new app**.
 3. Fill in the form:
-   - **App name:** `listing-workflow` (or any name)
+   - **App name:** `listing-workflow`
    - **What will your app do?** Describe it as an internal tool for managing your own listings.
    - **Who will use your app?** Select "Just me".
-4. Submit. After review (usually instant for personal apps), your app appears in the
-   **Your Apps** list.
-
-### 1.2 Collect Your Credentials
-
-From your app's detail page, copy:
-
-| Value | Where to find it | Maps to env var |
-|---|---|---|
-| **Keystring** | Listed under your app name | `ETSY_API_KEY` and `ETSY_CLIENT_ID` |
-
-> **Note:** The Keystring serves two roles in the Etsy v3 API — it is sent as the
-> `x-api-key` header on every request, and it is also the `client_id` in OAuth token
-> requests. Set both `ETSY_API_KEY` and `ETSY_CLIENT_ID` to the same Keystring value.
-
-### 1.3 Set a Redirect URI
-
-1. On your app's page, click **Edit** (or find the callback URL setting).
-2. Add a redirect URI. For a local one-time setup, `http://localhost:3003/callback` works
-   well — the helper script in Phase 2 starts a temporary server on that port.
-3. Save.
+4. Submit. After review (usually instant for personal apps), your app appears in **Your Apps**.
+5. From your app's detail page, copy the **Keystring**. This single value maps to both
+   `ETSY_API_KEY` and `ETSY_CLIENT_ID`.
+6. Click **Edit** on your app and add `http://localhost:3003/callback` as a redirect URI. Save.
 
 ---
 
 ## Phase 2 — Complete the OAuth Flow (One-Time)
 
-Etsy uses OAuth 2.0 with PKCE. This generates the refresh token that the MCP server uses
-for all subsequent calls. Run this once; after that, the server refreshes automatically.
+This generates the refresh token the MCP server uses for all subsequent calls.
 
-### 2.1 Required Scopes
+### Step 1 — Fill in and run the auth script
 
-The Etsy tools need these two scopes:
+> **You** — tell Claude Code your Keystring
+
+Give Claude Code your Keystring and say: *"Fill in the Keystring in `scripts/etsy-auth-setup.mjs`
+and run it."*
+
+> **Claude Code** — edits `scripts/etsy-auth-setup.mjs` with your Keystring and runs:
+> ```bash
+> node scripts/etsy-auth-setup.mjs
+> ```
+> The script prints an authorization URL and waits.
+
+### Step 2 — Authorize in the browser
+
+> **You** — browser required
+
+Open the URL the script printed. Sign in with your Etsy account if prompted, then click
+**Allow Access**. The browser will redirect to `localhost:3003` and show "Authorization
+successful!" — you can close the tab.
+
+### Step 3 — Capture the credentials
+
+> **Claude Code** — reads the terminal output and saves the credentials
+
+The script prints your `ETSY_API_KEY`, `ETSY_CLIENT_ID`, and `ETSY_REFRESH_TOKEN` to the
+terminal. Claude Code will capture these and fill them into `mcp-server/.env` in Phase 4.
+
+### Required OAuth Scopes (for reference)
 
 | Scope | Required for |
 |---|---|
 | `listings_w` | Creating, updating, and publishing listings |
-| `listings_r` | Reading listing data (optional but recommended for verification) |
-
-### 2.2 Run the PKCE Authorization Script
-
-The script is at `scripts/etsy-auth-setup.mjs` in the repo.
-
-**Steps:**
-1. Open `scripts/etsy-auth-setup.mjs` and replace `YOUR_ETSY_KEYSTRING` with your actual Keystring.
-2. Run from the repo root: `node scripts/etsy-auth-setup.mjs`
-3. Open the printed URL in your browser and authorize the app.
-4. The script prints your `ETSY_REFRESH_TOKEN` to the terminal.
-5. Copy the values into `mcp-server/.env` **and** your Claude Desktop config (see Phase 4).
-6. Clear your Keystring from the script (or just don't commit it — it is gitignored via `.env` convention; see note below).
-
-> **Security note:** `scripts/etsy-auth-setup.mjs` contains your Keystring in plain text once
-> you fill it in. Add `scripts/etsy-auth-setup.mjs` to `mcp-server/.gitignore`, or clear
-> the `CLIENT_ID` value before committing.
+| `listings_r` | Reading listing data (recommended for verification) |
 
 ---
 
 ## Phase 3 — Find Your Shop and Policy IDs
 
-The MCP server needs your shop ID, a shipping profile ID, and a return policy ID. Run
-these one-off API calls after completing the OAuth flow. You only need to do this once.
+### 3.1 Prerequisite check
 
-> All commands below use `curl`. On Windows, run them in Git Bash or WSL. Replace
-> `YOUR_API_KEY`, `YOUR_ACCESS_TOKEN`, and `YOUR_SHOP_NAME` with real values.
+> **You** — verify in Etsy Shop Manager
 
-### 3.1 Find Your Shop ID
+Before Claude Code can look up the IDs, make sure these exist in your Etsy account:
+
+- At least one **shipping profile**: [Shop Manager → Settings → Shipping settings](https://www.etsy.com/your/shops/settings/shipping)
+- At least one **return policy**: [Shop Manager → Settings → Policies](https://www.etsy.com/your/shops/settings/policies)
+
+If either is missing, create it now — the API lookups will return empty results otherwise.
+
+### 3.2 Look up the IDs
+
+> **Claude Code** — runs these three API calls using your Keystring and access token
+
+Tell Claude Code: *"Look up my Etsy shop ID, shipping profile ID, and return policy ID."*
+
+It will run:
 
 ```bash
+# Shop ID
 curl -s "https://openapi.etsy.com/v3/application/shops?shop_name=YOUR_SHOP_NAME" \
   -H "x-api-key: YOUR_API_KEY" | python3 -m json.tool
-```
 
-Look for `shop_id` in the response. This is a numeric value (e.g. `12345678`).
-
-Alternatively, go to your **Etsy Shop Manager**, click any listing, and look at the URL:
-`https://www.etsy.com/your/shops/YOUR_SHOP_NAME/tools/listings` — the numeric shop ID
-appears in API responses, not the URL itself, so the curl call above is the most reliable
-method.
-
-### 3.2 Find Your Shipping Profile ID
-
-```bash
+# Shipping profiles
 curl -s "https://openapi.etsy.com/v3/application/shops/YOUR_SHOP_ID/shipping-profiles" \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" | python3 -m json.tool
-```
 
-Each profile in the `results` array has a `shipping_profile_id`. Note the ID of the
-profile you want as the default for new listings.
-
-> **Create a profile first if none exist:** Go to
-> [Etsy Shop Manager → Settings → Shipping settings](https://www.etsy.com/your/shops/settings/shipping)
-> and create at least one shipping profile before running this call.
-
-### 3.3 Find Your Return Policy ID
-
-```bash
+# Return policies
 curl -s "https://openapi.etsy.com/v3/application/shops/YOUR_SHOP_ID/return-policies" \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" | python3 -m json.tool
 ```
 
-Each policy in the `results` array has a `return_policy_id`. Note the ID of the policy
-you want applied to new listings by default.
-
-> **Create a policy first if none exist:** Go to
-> [Etsy Shop Manager → Settings → Policies](https://www.etsy.com/your/shops/settings/policies)
-> and create a return policy.
+Claude Code will extract `shop_id`, `shipping_profile_id`, and `return_policy_id` from
+the responses and carry them into Phase 4.
 
 ---
 
 ## Phase 4 — Configure Environment Variables
 
-### Do I need to set env vars in the Claude Desktop config, or will it read from `.env`?
+### Why you need env vars in two places
 
-**Short answer: you need both, for different purposes.**
+**Short answer: `.env` is for local dev; the Claude Desktop config is for Claude Desktop itself.**
 
-When you run the server yourself from the terminal (`node build/index.js` from inside
-`mcp-server/`), `dotenv` finds and loads `mcp-server/.env` because the working directory
-is `mcp-server/`. That path works fine for local testing.
+When you run the server from the terminal (`node build/index.js` from inside `mcp-server/`),
+`dotenv` finds and loads `mcp-server/.env` because the working directory is `mcp-server/`.
 
-When **Claude Desktop** launches the server, it spawns the Node process from its own
-working directory — not `mcp-server/` — so `dotenv` cannot find the `.env` file. The
-server starts with no credentials and every API call fails.
+When **Claude Desktop** launches the server, it spawns the Node process from its own working
+directory — not `mcp-server/` — so `dotenv` cannot find the `.env` file and the server starts
+with no credentials. The env vars must also be set in the `env` block of
+`claude_desktop_config.json`.
 
-The fix is to set the env vars explicitly in the `env` block of `claude_desktop_config.json`.
-When variables are present in the process environment (injected by Claude Desktop), `dotenv`
-skips them and they take effect normally. There is no conflict between the two.
+They hold the same values in two places. When a credential changes (e.g. a rotated Etsy
+refresh token), update both.
 
-**Practical workflow:**
-- Keep `mcp-server/.env` filled in — it makes local dev and testing easy.
-- Keep `claude_desktop_config.json` filled in — it makes Claude Desktop work.
-- They are the same values in two places. When a credential changes (e.g. a rotated Etsy
-  refresh token), update both.
+### 4.1 Create `mcp-server/.env`
 
----
+> **Claude Code** — creates the file with all values from Phases 1–3
 
-### 4.1 Create the `.env` File
+Tell Claude Code: *"Create `mcp-server/.env` with all the credentials."*
 
-In `mcp-server/`, copy `.env.example` to `.env` and fill in every value:
+The file should look like this (Claude Code fills in the real values):
 
 ```env
-# --- eBay credentials (existing) ---
+# --- eBay credentials ---
 EBAY_CLIENT_ID=your_ebay_client_id
 EBAY_CLIENT_SECRET=your_ebay_client_secret
 EBAY_REFRESH_TOKEN=your_ebay_refresh_token
@@ -186,26 +162,28 @@ EBAY_RETURN_POLICY_ID=your_policy_id
 GOOGLE_VISION_API_KEY=your_google_vision_key
 
 # --- Etsy credentials ---
-# ETSY_API_KEY and ETSY_CLIENT_ID are the same value (your app's Keystring)
 ETSY_API_KEY=your_etsy_keystring
 ETSY_CLIENT_ID=your_etsy_keystring
-ETSY_REFRESH_TOKEN=your_etsy_refresh_token   # from Phase 2
+ETSY_REFRESH_TOKEN=your_etsy_refresh_token
 
 # --- Etsy shop configuration ---
-ETSY_SHOP_ID=12345678                        # numeric ID from Phase 3.1
-ETSY_SHIPPING_PROFILE_ID=98765432            # from Phase 3.2
-ETSY_RETURN_POLICY_ID=11223344               # from Phase 3.3
+ETSY_SHOP_ID=12345678
+ETSY_SHIPPING_PROFILE_ID=98765432
+ETSY_RETURN_POLICY_ID=11223344
 ```
 
-`.env` is gitignored. Never commit it.
+### 4.2 Update Claude Desktop Config
 
-### 4.2 Claude Desktop Configuration
+> **Claude Code** — edits `claude_desktop_config.json` to add the Etsy env vars
 
-Set all env vars in `claude_desktop_config.json` as well (see explanation above — Claude
-Desktop does not read from `mcp-server/.env`):
+Tell Claude Code: *"Update my Claude Desktop config with the Etsy credentials."*
 
+Claude Desktop config location:
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 - **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+Claude Code will add all Etsy keys to the existing `env` block. The final `env` block
+should contain every key from both platforms:
 
 ```json
 {
@@ -214,107 +192,130 @@ Desktop does not read from `mcp-server/.env`):
       "command": "node",
       "args": ["C:\\absolute\\path\\to\\mcp-server\\build\\index.js"],
       "env": {
-        "EBAY_CLIENT_ID": "your_ebay_client_id",
-        "EBAY_CLIENT_SECRET": "your_ebay_client_secret",
-        "EBAY_REFRESH_TOKEN": "your_ebay_refresh_token",
-        "EBAY_RUNAME": "your_runame",
+        "EBAY_CLIENT_ID": "...",
+        "EBAY_CLIENT_SECRET": "...",
+        "EBAY_REFRESH_TOKEN": "...",
+        "EBAY_RUNAME": "...",
         "EBAY_ENVIRONMENT": "production",
-        "EBAY_FULFILLMENT_POLICY_ID": "your_policy_id",
-        "EBAY_PAYMENT_POLICY_ID": "your_policy_id",
-        "EBAY_RETURN_POLICY_ID": "your_policy_id",
-        "GOOGLE_VISION_API_KEY": "your_google_vision_key",
-        "ETSY_API_KEY": "your_etsy_keystring",
-        "ETSY_CLIENT_ID": "your_etsy_keystring",
-        "ETSY_REFRESH_TOKEN": "your_etsy_refresh_token",
-        "ETSY_SHOP_ID": "12345678",
-        "ETSY_SHIPPING_PROFILE_ID": "98765432",
-        "ETSY_RETURN_POLICY_ID": "11223344"
+        "EBAY_FULFILLMENT_POLICY_ID": "...",
+        "EBAY_PAYMENT_POLICY_ID": "...",
+        "EBAY_RETURN_POLICY_ID": "...",
+        "GOOGLE_VISION_API_KEY": "...",
+        "ETSY_API_KEY": "...",
+        "ETSY_CLIENT_ID": "...",
+        "ETSY_REFRESH_TOKEN": "...",
+        "ETSY_SHOP_ID": "...",
+        "ETSY_SHIPPING_PROFILE_ID": "...",
+        "ETSY_RETURN_POLICY_ID": "..."
       }
     }
   }
 }
 ```
 
-> **Important:** When env vars are set in the Claude Desktop config, `dotenv` is a no-op —
-> the server reads from the process environment directly. Set them in one place only
-> (either `.env` for local dev or the Claude Desktop config for production).
+### 4.3 Restart Claude Desktop
+
+> **You** — manual action required
+
+Quit and reopen Claude Desktop so it picks up the updated config.
 
 ---
 
 ## Phase 5 — Handling Refresh Token Rotation
 
-Etsy invalidates each refresh token immediately after it is used. The server keeps the
-new token in memory for the life of the process, but if the server restarts, it falls
-back to `ETSY_REFRESH_TOKEN` from the environment — which may be stale if a refresh
-happened in a previous session.
+Etsy invalidates each refresh token immediately after it is used. The server keeps the new
+token in memory for the life of the process, but loses it on restart and falls back to the
+(now stale) `ETSY_REFRESH_TOKEN` in the config.
 
-**How to detect a stale token:** The server logs a message to stderr each time the token
-rotates:
+### Detecting a rotated token
+
+> **Claude Code** — can check the log file on request
+
+The server logs a message to stderr each time the token rotates:
 
 ```
 [etsy-auth] Refresh token rotated. Update ETSY_REFRESH_TOKEN in your .env to: <new_token>
 ```
 
-In Claude Desktop, stderr from the MCP server appears in the **Claude Desktop log file**:
+Claude Desktop writes this to its MCP server log:
 - **Windows:** `%APPDATA%\Claude\logs\mcp-server-listing-agent.log`
 - **Mac:** `~/Library/Logs/Claude/mcp-server-listing-agent.log`
 
-**Workflow to stay current:**
+Tell Claude Code: *"Check the Claude Desktop MCP log for a rotated Etsy token."* It will
+read the log and extract the new token if one is present.
 
-1. After any session where Etsy tools were used, check the log for the rotation message.
-2. Copy the new token and update `ETSY_REFRESH_TOKEN` in both `.env` and the Claude
-   Desktop config.
-3. Restart Claude Desktop to load the updated config.
+### Updating the token
 
-**If you get a 401 Unauthorized error** from any Etsy tool, your refresh token is stale.
-Re-run the authorization script from Phase 2 to get a fresh refresh token.
+> **Claude Code** — updates both config files
 
-> **Tip:** Keep the `etsy-auth-setup.mjs` script (with your Keystring filled in) in a
-> secure location outside the repo so you can re-run it quickly when needed.
+Tell Claude Code: *"Update the Etsy refresh token to `<new_token>` in `.env` and the Claude
+Desktop config."*
+
+### Restarting after a token update
+
+> **You** — manual action required
+
+Restart Claude Desktop after any config update for the new token to take effect.
+
+### If you get a 401 Unauthorized error
+
+> **You** — re-run the auth script (Phase 2)
+
+Your refresh token has expired or been invalidated. Go back to Phase 2 and re-authorize.
+Claude Code can run the script again; you just need to open the browser URL.
 
 ---
 
 ## Phase 6 — Verify the Setup
 
-### 6.1 Build the Server
+### 6.1 Build the server
+
+> **Claude Code**
+
+Tell Claude Code: *"Build the MCP server."*
 
 ```bash
-cd mcp-server
-npm install
-npm run build
+cd mcp-server && npm install && npm run build
 ```
 
-### 6.2 Test Taxonomy Lookup (No Auth Required)
+### 6.2 Test the API key
 
-This endpoint only needs the API key — a quick sanity check before testing OAuth:
+> **Claude Code**
+
+Tell Claude Code: *"Test the Etsy API key with a taxonomy lookup."*
 
 ```bash
 curl -s "https://openapi.etsy.com/v3/application/seller-taxonomy/nodes" \
   -H "x-api-key: YOUR_API_KEY" | python3 -m json.tool | head -30
 ```
 
-You should see a JSON response with a `results` array of taxonomy nodes. If you get a
-`403 Forbidden`, your API key is incorrect or the app is not approved.
+A `results` array of taxonomy nodes means the key is valid. A `403 Forbidden` means the
+key is wrong or the app is not yet approved.
 
-### 6.3 Test a Draft Listing End-to-End
+### 6.3 Verify tools load in Claude Desktop
 
-1. Restart Claude Desktop.
-2. Start a new conversation and ask:
-   ```
-   List the available tools from the listing-agent MCP server.
-   ```
-   You should see both the eBay tools and the five new Etsy tools (`etsy_get_taxonomy_nodes`,
-   `etsy_get_taxonomy_node_properties`, `etsy_create_draft_listing`,
-   `etsy_upload_listing_image`, `etsy_publish_listing`).
+> **You** — in a Claude Desktop conversation
 
-3. Test the full flow with a low-value item:
-   ```
-   Create a draft Etsy listing for [item description]. Keep it as a draft — 
-   do not publish.
-   ```
-   Verify the draft appears in your
-   [Etsy Shop Manager → Listings → Drafts](https://www.etsy.com/your/shops/listings?state=draft).
-   Delete the test draft manually afterwards.
+In a new Claude Desktop conversation, ask:
+```
+List the available tools from the listing-agent MCP server.
+```
+
+You should see both the eBay tools and the five Etsy tools: `etsy_get_taxonomy_nodes`,
+`etsy_get_taxonomy_node_properties`, `etsy_create_draft_listing`, `etsy_upload_listing_image`,
+`etsy_publish_listing`.
+
+### 6.4 Test a draft listing end-to-end
+
+> **You** — in a Claude Desktop conversation, then verify in Etsy Shop Manager
+
+In Claude Desktop, ask:
+```
+Create a draft Etsy listing for [describe a low-value item]. Keep it as a draft — do not publish.
+```
+
+Then verify the draft appears in [Etsy Shop Manager → Listings → Drafts](https://www.etsy.com/your/shops/listings?state=draft).
+Delete the test draft manually afterwards.
 
 ---
 
@@ -329,32 +330,28 @@ You should see a JSON response with a `results` array of taxonomy nodes. If you 
 | `etsy_publish_listing` | `PATCH` | `/application/shops/{shop_id}/listings/{listing_id}` |
 
 All endpoints use base URL `https://openapi.etsy.com/v3`.
-
-Taxonomy endpoints require only the `x-api-key` header.
-All shop-scoped endpoints require both `x-api-key` and `Authorization: Bearer {token}`.
+Taxonomy endpoints require only `x-api-key`. All shop-scoped endpoints require both
+`x-api-key` and `Authorization: Bearer {token}`.
 
 ---
 
 ## Appendix B — Etsy Listing Workflow
 
 ```
-1. etsy_get_taxonomy_nodes         → find the right category (returns taxonomyId)
+1. etsy_get_taxonomy_nodes           → find the right category (returns taxonomyId)
 2. etsy_get_taxonomy_node_properties → see what attributes are available
-3. google_vision_web_detection     → identify item from photo (shared tool)
-4. etsy_create_draft_listing       → create draft (returns listingId)
-5. etsy_upload_listing_image       × N → attach each photo to the listing
-6. etsy_publish_listing            → make the listing active
+3. google_vision_web_detection       → identify item from photo (shared tool)
+4. etsy_create_draft_listing         → create draft (returns listingId)
+5. etsy_upload_listing_image × N     → attach each photo to the listing
+6. etsy_publish_listing              → make the listing active
 ```
 
-Note the order difference from eBay: images are uploaded **after** creating the listing
-(Etsy requires a `listing_id` to attach images to), whereas eBay images are uploaded
-first to get hosted URLs.
+Images are uploaded **after** creating the listing (Etsy requires a `listing_id` first),
+unlike eBay where images are uploaded first to get hosted URLs.
 
 ---
 
 ## Appendix C — Required `whenMade` Values
-
-Etsy requires every listing to declare when the item was made. Valid values:
 
 | Value | Meaning |
 |---|---|
@@ -362,17 +359,17 @@ Etsy requires every listing to declare when the item was made. Valid values:
 | `2020_2024` | Made 2020–2024 |
 | `2010_2019` | Made 2010–2019 |
 | `2004_2009` | Made 2004–2009 |
-| `before_2004` | Made before 2004 (catch-all recent vintage) |
+| `before_2004` | Made before 2004 |
 | `2000_2003` | Made 2000–2003 |
-| `1990s` | Made in the 1990s |
-| `1980s` | Made in the 1980s |
-| `1970s` | Made in the 1970s |
-| `1960s` | Made in the 1960s |
-| `1950s` | Made in the 1950s |
-| `1940s` | Made in the 1940s |
-| `1930s` | Made in the 1930s |
-| `1920s` | Made in the 1920s |
-| `before_1920` | Made before 1920 |
+| `1990s` | 1990s |
+| `1980s` | 1980s |
+| `1970s` | 1970s |
+| `1960s` | 1960s |
+| `1950s` | 1950s |
+| `1940s` | 1940s |
+| `1930s` | 1930s |
+| `1920s` | 1920s |
+| `before_1920` | Before 1920 |
 
 ---
 
@@ -380,9 +377,9 @@ Etsy requires every listing to declare when the item was made. Valid values:
 
 | Error | Likely cause | Fix |
 |---|---|---|
-| `401 Unauthorized` on listing tools | Stale refresh token | Re-run Phase 2 OAuth script |
+| `401 Unauthorized` on listing tools | Stale refresh token | Re-run Phase 2 (you open browser; Claude Code runs the script) |
 | `403 Forbidden` on taxonomy tools | Invalid API key | Check `ETSY_API_KEY` value |
 | `400 Bad Request` on create listing | Missing required field | Check `whoMade`, `whenMade`, `taxonomyId` |
-| `404 Not Found` on listing tools | Wrong `ETSY_SHOP_ID` | Re-run Phase 3.1 shop ID lookup |
+| `404 Not Found` on listing tools | Wrong `ETSY_SHOP_ID` | Ask Claude Code to re-run the shop ID lookup |
 | No Etsy tools listed in Claude | Server not restarted | Restart Claude Desktop after config change |
-| Token rotation message in logs | Normal operation | Update `ETSY_REFRESH_TOKEN` in config |
+| Token rotation message in logs | Normal operation | Ask Claude Code to read the log and update both config files |
