@@ -1,5 +1,5 @@
 ---
-name: list-item
+name: listing-workflow
 description: Research, draft, and post an item listing to eBay, Etsy, or both — from local photo files using the listing-agent MCP server.
 ---
 
