@@ -71,105 +71,19 @@ The Etsy tools need these two scopes:
 
 ### 2.2 Run the PKCE Authorization Script
 
-Save the following as a temporary file (e.g. `etsy-auth-setup.mjs`) outside the repo,
-then run it with `node etsy-auth-setup.mjs`. Delete it after you have the refresh token.
-
-```javascript
-// etsy-auth-setup.mjs
-// One-time script to obtain an Etsy refresh token via PKCE OAuth flow.
-// Run: node etsy-auth-setup.mjs
-// Requires: node >= 18 (uses built-in crypto and http)
-
-import crypto from "crypto";
-import http from "http";
-import { URLSearchParams } from "url";
-
-const CLIENT_ID = "YOUR_ETSY_KEYSTRING";       // paste your Keystring here
-const REDIRECT_URI = "http://localhost:3003/callback";
-const SCOPES = "listings_w listings_r";
-
-// --- PKCE helpers ---
-function base64url(buf) {
-  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-const codeVerifier = base64url(crypto.randomBytes(64));
-const codeChallenge = base64url(
-  crypto.createHash("sha256").update(codeVerifier).digest()
-);
-const state = crypto.randomBytes(16).toString("hex");
-
-// --- Build authorization URL ---
-const authUrl =
-  "https://www.etsy.com/oauth/connect?" +
-  new URLSearchParams({
-    response_type: "code",
-    redirect_uri: REDIRECT_URI,
-    scope: SCOPES,
-    client_id: CLIENT_ID,
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-  });
-
-console.log("\nOpen this URL in your browser:\n");
-console.log(authUrl);
-console.log("\nWaiting for redirect on http://localhost:3003/callback ...\n");
-
-// --- Temporary local server to catch the redirect ---
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, "http://localhost:3003");
-  if (url.pathname !== "/callback") { res.end(); return; }
-
-  const code = url.searchParams.get("code");
-  const returnedState = url.searchParams.get("state");
-
-  if (returnedState !== state) {
-    res.end("State mismatch — aborting.");
-    server.close();
-    return;
-  }
-
-  res.end("Authorization successful! You can close this tab.");
-  server.close();
-
-  // --- Exchange code for tokens ---
-  const tokenRes = await fetch("https://api.etsy.com/v3/public/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      client_id: CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
-      code,
-      code_verifier: codeVerifier,
-    }),
-  });
-
-  if (!tokenRes.ok) {
-    console.error("Token exchange failed:", await tokenRes.text());
-    return;
-  }
-
-  const tokens = await tokenRes.json();
-  console.log("\n=== SUCCESS — save these values in your .env file ===\n");
-  console.log(`ETSY_API_KEY=${CLIENT_ID}`);
-  console.log(`ETSY_CLIENT_ID=${CLIENT_ID}`);
-  console.log(`ETSY_REFRESH_TOKEN=${tokens.refresh_token}`);
-  console.log("\nAccess token (expires in", tokens.expires_in, "seconds — server manages this automatically):");
-  console.log(tokens.access_token);
-});
-
-server.listen(3003);
-```
+The script is at `scripts/etsy-auth-setup.mjs` in the repo.
 
 **Steps:**
-1. Replace `YOUR_ETSY_KEYSTRING` with your actual Keystring.
-2. Run `node etsy-auth-setup.mjs`.
+1. Open `scripts/etsy-auth-setup.mjs` and replace `YOUR_ETSY_KEYSTRING` with your actual Keystring.
+2. Run from the repo root: `node scripts/etsy-auth-setup.mjs`
 3. Open the printed URL in your browser and authorize the app.
 4. The script prints your `ETSY_REFRESH_TOKEN` to the terminal.
-5. Copy the values into `mcp-server/.env`.
-6. Delete `etsy-auth-setup.mjs` — it contains your Keystring in plain text.
+5. Copy the values into `mcp-server/.env` **and** your Claude Desktop config (see Phase 4).
+6. Clear your Keystring from the script (or just don't commit it — it is gitignored via `.env` convention; see note below).
+
+> **Security note:** `scripts/etsy-auth-setup.mjs` contains your Keystring in plain text once
+> you fill it in. Add `scripts/etsy-auth-setup.mjs` to `mcp-server/.gitignore`, or clear
+> the `CLIENT_ID` value before committing.
 
 ---
 
@@ -229,6 +143,30 @@ you want applied to new listings by default.
 
 ## Phase 4 — Configure Environment Variables
 
+### Do I need to set env vars in the Claude Desktop config, or will it read from `.env`?
+
+**Short answer: you need both, for different purposes.**
+
+When you run the server yourself from the terminal (`node build/index.js` from inside
+`mcp-server/`), `dotenv` finds and loads `mcp-server/.env` because the working directory
+is `mcp-server/`. That path works fine for local testing.
+
+When **Claude Desktop** launches the server, it spawns the Node process from its own
+working directory — not `mcp-server/` — so `dotenv` cannot find the `.env` file. The
+server starts with no credentials and every API call fails.
+
+The fix is to set the env vars explicitly in the `env` block of `claude_desktop_config.json`.
+When variables are present in the process environment (injected by Claude Desktop), `dotenv`
+skips them and they take effect normally. There is no conflict between the two.
+
+**Practical workflow:**
+- Keep `mcp-server/.env` filled in — it makes local dev and testing easy.
+- Keep `claude_desktop_config.json` filled in — it makes Claude Desktop work.
+- They are the same values in two places. When a credential changes (e.g. a rotated Etsy
+  refresh token), update both.
+
+---
+
 ### 4.1 Create the `.env` File
 
 In `mcp-server/`, copy `.env.example` to `.env` and fill in every value:
@@ -263,8 +201,8 @@ ETSY_RETURN_POLICY_ID=11223344               # from Phase 3.3
 
 ### 4.2 Claude Desktop Configuration
 
-Add the Etsy env vars to `claude_desktop_config.json`. The existing eBay entry already
-starts the MCP server; just add the Etsy keys to its `env` block:
+Set all env vars in `claude_desktop_config.json` as well (see explanation above — Claude
+Desktop does not read from `mcp-server/.env`):
 
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 - **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
