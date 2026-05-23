@@ -37,7 +37,7 @@ Assess all photos — different angles often reveal markings or details not visi
 
 ## STEP 3 — REVERSE IMAGE RESEARCH
 
-Run both tools regardless of which platform the user is listing on. Both signals feed the synthesis in Step 4.
+Run all three tools in parallel, regardless of which platform the user is listing on. All signals feed the synthesis in Step 4.
 
 **Google Vision:**
 Call `google_vision_web_detection` with the primary photo path.
@@ -47,9 +47,13 @@ Record `bestGuessLabels`, all `webEntities` with their scores, and any `pagesWit
 Call `ebay_search_by_image` with the primary photo path.
 Record all returned listing titles, prices, and conditions. If it returns an error (Browse API not approved), note that and continue with the remaining signals.
 
+**Gemini research:**
+Call `gemini_item_research` with **all** photo paths (not just the primary). Pass any visible text, markings, or other clues observed in Step 2 as the `context` argument (e.g. `"Visible text: 'Made in Japan', blue floral pattern, white ceramic"`).
+Record `itemDescription`, `suggestedCategory`, `webFindings`, and any `sources`. If it returns an error (API key not configured), note that and continue with the remaining signals.
+
 ## STEP 4 — SYNTHESIZE & SCORE
 
-Combine all four signals — user input, your visual assessment (Step 2), Google Vision results, and eBay image search results — into a single unified item identification. Present it in this exact format:
+Combine all five signals — user input, your visual assessment (Step 2), Google Vision results, eBay image search results, and Gemini research — into a single unified item identification. Present it in this exact format:
 
 ---
 
@@ -66,6 +70,7 @@ Combine all four signals — user input, your visual assessment (Step 2), Google
 **Visual assessment:** [Key observations from reading the photos directly]
 **Google Vision:** [Top labels and scores; any page matches]
 **eBay image search:** [Top 3 matching titles and prices]
+**Gemini research:** [itemDescription and webFindings; list source URLs if present]
 
 ### Confidence
 
