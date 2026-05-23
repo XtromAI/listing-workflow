@@ -28,7 +28,10 @@ Run a single test file:
 npx vitest run src/__tests__/tools/createOffer.test.ts
 ```
 
-After building, register `build/index.js` in `%APPDATA%\Claude\claude_desktop_config.json` under `mcpServers`. Restart Claude Desktop after any config or build change.
+After building, register `build/index.js` in the Claude Desktop config under `mcpServers`. Restart Claude Desktop after any config or build change.
+
+**Config location (Windows Store install):**
+`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
 
 ## MCP Server Architecture
 
@@ -62,7 +65,7 @@ Key groupings:
 - Google: `GOOGLE_VISION_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`
 - Etsy: `ETSY_API_KEY`, `ETSY_CLIENT_ID` (same value as `ETSY_API_KEY`), `ETSY_REFRESH_TOKEN`, `ETSY_SHOP_ID`, `ETSY_SHIPPING_PROFILE_ID`, `ETSY_RETURN_POLICY_ID`
 
-`EBAY_MERCHANT_LOCATION_KEY` is read by `createOffer.ts` but not yet in `.env.example` — add it if creating offers fails.
+- eBay: `EBAY_MERCHANT_LOCATION_KEY` — set to `"default-location"` (or whatever key was used when running `ebay_create_merchant_location`). Must be present in both `.env` and the Claude Desktop config `env` block.
 
 ## Testing Approach
 

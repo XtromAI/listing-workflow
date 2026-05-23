@@ -36,6 +36,7 @@ describe("gemini_item_research", () => {
     vi.clearAllMocks();
     mockFs.readFileSync.mockReturnValue(FAKE_IMAGE_BUFFER);
     process.env.GEMINI_API_KEY = "test-gemini-key";
+    process.env.GEMINI_MODEL = "test-gemini-model";
   });
 
   describe("definition", () => {
@@ -58,7 +59,7 @@ describe("gemini_item_research", () => {
       expect(mockAxios.post).toHaveBeenCalledOnce();
       const [url] = mockAxios.post.mock.calls[0];
       expect(url).toContain("generativelanguage.googleapis.com");
-      expect(url).toContain("gemini-3.5-flash");
+      expect(url).toContain("test-gemini-model");
       expect(url).toContain("test-gemini-key");
     });
 
@@ -163,6 +164,15 @@ describe("gemini_item_research", () => {
       expect(mockAxios.post).not.toHaveBeenCalled();
     });
 
+    it("returns error object without calling axios when GEMINI_MODEL is missing", async () => {
+      delete process.env.GEMINI_MODEL;
+
+      const result = (await handler({ imagePaths: ["/fake/photo.jpg"] })) as { error: string };
+
+      expect(result.error).toContain("GEMINI_MODEL");
+      expect(mockAxios.post).not.toHaveBeenCalled();
+    });
+
     it("returns error object without calling axios when imagePaths is empty", async () => {
       const result = (await handler({ imagePaths: [] })) as { error: string };
 
@@ -185,15 +195,21 @@ describe("gemini_item_research", () => {
     });
 
     it("returns error object on 429 rate limit without throwing", async () => {
+      vi.useFakeTimers();
       const rateLimitError = Object.assign(new Error("Request failed") as import("axios").AxiosError, {
         isAxiosError: true,
         response: { status: 429, data: {}, headers: {}, config: {} as never, statusText: "" },
       });
       mockAxios.isAxiosError = vi.fn().mockReturnValue(true);
-      mockAxios.post.mockRejectedValueOnce(rateLimitError);
+      // Reject all attempts (retries included)
+      mockAxios.post.mockRejectedValue(rateLimitError);
 
-      const result = (await handler({ imagePaths: ["/fake/photo.jpg"] })) as { error: string };
+      const resultPromise = handler({ imagePaths: ["/fake/photo.jpg"] });
+      await vi.runAllTimersAsync();
+      const result = (await resultPromise) as { error: string };
+
       expect(result.error).toContain("429");
+      vi.useRealTimers();
     });
 
     it("propagates non-429 axios errors", async () => {

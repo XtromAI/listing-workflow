@@ -39,6 +39,11 @@ export async function handler(args: Record<string, unknown>) {
     return { error: "GEMINI_API_KEY not configured — add it to your .env file" };
   }
 
+  const model = process.env.GEMINI_MODEL;
+  if (!model) {
+    return { error: "GEMINI_MODEL not configured — add it to your .env file" };
+  }
+
   if (!imagePaths || imagePaths.length === 0) {
     return { error: "imagePaths must contain at least one path" };
   }
@@ -62,25 +67,33 @@ export async function handler(args: Record<string, unknown>) {
     `SOURCES: [Comma-separated list of the most useful URLs you found, or "none"]\n\n` +
     `Be specific. If you can read any text in any of the images, quote it exactly.`;
 
-  const model = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const body = {
+    contents: [{ parts: [...imageParts, { text: prompt }] }],
+    tools: [{ googleSearch: {} }],
+  };
+
   let response;
-  try {
-    response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        contents: [
-          {
-            parts: [...imageParts, { text: prompt }],
-          },
-        ],
-        tools: [{ googleSearch: {} }],
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      response = await axios.post(url, body);
+      break;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const retryable = status === 429 || (status !== undefined && status >= 500);
+        if (retryable && attempt < maxAttempts) {
+          const delayMs = 1000 * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
+        if (status === 429) {
+          return { error: "Gemini rate limit exceeded (429) — check your quota at ai.google.dev or try again later" };
+        }
       }
-    );
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err) && err.response?.status === 429) {
-      return { error: "Gemini rate limit exceeded (429) — check your quota at ai.google.dev or try again later" };
+      throw err;
     }
-    throw err;
   }
 
   const rawText: string =
