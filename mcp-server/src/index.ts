@@ -10,6 +10,7 @@ import * as getCategories from "./tools/getCategories.js";
 import * as getCategoryRequirements from "./tools/getCategoryRequirements.js";
 import * as searchByImage from "./tools/searchByImage.js";
 import * as visionDetect from "./tools/visionDetect.js";
+import * as geminiResearch from "./tools/geminiResearch.js";
 import * as uploadImage from "./tools/uploadImage.js";
 import * as createItem from "./tools/createItem.js";
 import * as createOffer from "./tools/createOffer.js";
@@ -27,6 +28,7 @@ const tools = [
   getCategoryRequirements,
   searchByImage,
   visionDetect,
+  geminiResearch,
   uploadImage,
   createItem,
   createOffer,
