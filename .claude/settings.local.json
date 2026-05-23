@@ -15,7 +15,10 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\creks\\\\Documents\\\\Repositories\\\\listing-workflow\" -Recurse -Force)",
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(dir /b)",
+      "Bash(npx tsc *)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Packages\" -Filter \"claude_desktop_config.json\" -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)"
     ]
   }
 }
