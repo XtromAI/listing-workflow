@@ -62,17 +62,26 @@ export async function handler(args: Record<string, unknown>) {
     `SOURCES: [Comma-separated list of the most useful URLs you found, or "none"]\n\n` +
     `Be specific. If you can read any text in any of the images, quote it exactly.`;
 
-  const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-    {
-      contents: [
-        {
-          parts: [...imageParts, { text: prompt }],
-        },
-      ],
-      tools: [{ googleSearch: {} }],
+  const model = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
+  let response;
+  try {
+    response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        contents: [
+          {
+            parts: [...imageParts, { text: prompt }],
+          },
+        ],
+        tools: [{ googleSearch: {} }],
+      }
+    );
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response?.status === 429) {
+      return { error: "Gemini rate limit exceeded (429) — check your quota at ai.google.dev or try again later" };
     }
-  );
+    throw err;
+  }
 
   const rawText: string =
     response.data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";

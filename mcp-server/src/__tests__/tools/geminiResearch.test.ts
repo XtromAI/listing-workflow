@@ -184,9 +184,21 @@ describe("gemini_item_research", () => {
       expect(result.rawText).toBe("");
     });
 
-    it("propagates axios errors", async () => {
-      mockAxios.post.mockRejectedValueOnce(new Error("quota exceeded"));
-      await expect(handler({ imagePaths: ["/fake/photo.jpg"] })).rejects.toThrow("quota exceeded");
+    it("returns error object on 429 rate limit without throwing", async () => {
+      const rateLimitError = Object.assign(new Error("Request failed") as import("axios").AxiosError, {
+        isAxiosError: true,
+        response: { status: 429, data: {}, headers: {}, config: {} as never, statusText: "" },
+      });
+      mockAxios.isAxiosError = vi.fn().mockReturnValue(true);
+      mockAxios.post.mockRejectedValueOnce(rateLimitError);
+
+      const result = (await handler({ imagePaths: ["/fake/photo.jpg"] })) as { error: string };
+      expect(result.error).toContain("429");
+    });
+
+    it("propagates non-429 axios errors", async () => {
+      mockAxios.post.mockRejectedValueOnce(new Error("network error"));
+      await expect(handler({ imagePaths: ["/fake/photo.jpg"] })).rejects.toThrow("network error");
     });
   });
 });

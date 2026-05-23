@@ -35,25 +35,29 @@ Read every photo the user provided using the Read tool and examine each image ca
 
 Assess all photos — different angles often reveal markings or details not visible in the primary shot. Note anything that seems significant even if you're not sure what it means yet.
 
+**Image triage:** After examining every photo, classify each as **useful for identification** or **not useful**. An image is useful if it shows at least one of: visible text or markings, a distinctive design feature, a characteristic that helps narrow maker/era/model, or a clear view that adds new information not already covered by another photo. Mark blurry, heavily redundant, or packaging-only shots as not useful. Only useful images proceed to Step 3 research tools.
+
 ## STEP 3 — REVERSE IMAGE RESEARCH
 
-Run all three tools in parallel, regardless of which platform the user is listing on. All signals feed the synthesis in Step 4.
+Run all three tools against every useful image identified in Step 2. All signals feed the synthesis in Step 4.
 
 **Google Vision:**
-Call `google_vision_web_detection` with the primary photo path.
-Record `bestGuessLabels`, all `webEntities` with their scores, and any `pagesWithMatchingImages` if present.
+For each useful image, call `google_vision_web_detection` with that image's path. Run all calls in parallel.
+For each result record `bestGuessLabels`, all `webEntities` with their scores, and any `pagesWithMatchingImages` if present. Note which image each result came from.
 
 **eBay image search:**
-Call `ebay_search_by_image` with the primary photo path.
-Record all returned listing titles, prices, and conditions. If it returns an error (Browse API not approved), note that and continue with the remaining signals.
+For each useful image, call `ebay_search_by_image` with that image's path. Run all calls in parallel.
+For each result record all returned listing titles, prices, and conditions. Note which image each result came from. If a call returns an error (Browse API not approved), note that and continue with the remaining signals.
 
 **Gemini research:**
-Call `gemini_item_research` with **all** photo paths (not just the primary). Pass any visible text, markings, or other clues observed in Step 2 as the `context` argument (e.g. `"Visible text: 'Made in Japan', blue floral pattern, white ceramic"`).
+Call `gemini_item_research` once with **all useful image paths** as the `imagePaths` array. Pass any visible text, markings, or other clues observed in Step 2 as the `context` argument (e.g. `"Visible text: 'Made in Japan', blue floral pattern, white ceramic"`).
 Record `itemDescription`, `suggestedCategory`, `webFindings`, and any `sources`. If it returns an error (API key not configured), note that and continue with the remaining signals.
+
+**Aggregation:** After all calls complete, consolidate the per-image Vision and eBay results. Note where multiple images produced consistent signals (strengthens confidence) and where they diverged (note the discrepancy). Carry the full merged set into Step 4.
 
 ## STEP 4 — SYNTHESIZE & SCORE
 
-Combine all five signals — user input, your visual assessment (Step 2), Google Vision results, eBay image search results, and Gemini research — into a single unified item identification. Present it in this exact format:
+Combine all signals — user input, your visual assessment (Step 2), Google Vision results per useful image, eBay image search results per useful image, and Gemini research — into a single unified item identification. Where multiple images produced Vision or eBay results, weight consistent signals more heavily and surface any discrepancies. Present the synthesis in this exact format:
 
 ---
 
@@ -67,9 +71,9 @@ Combine all five signals — user input, your visual assessment (Step 2), Google
 ### Signal Breakdown
 
 **User input:** [What the user told you, or "Not provided"]
-**Visual assessment:** [Key observations from reading the photos directly]
-**Google Vision:** [Top labels and scores; any page matches]
-**eBay image search:** [Top 3 matching titles and prices]
+**Visual assessment:** [Key observations from reading the photos; which images were used for research and why any were excluded]
+**Google Vision:** [Aggregated top labels and scores across all useful images; note any per-image differences; any page matches]
+**eBay image search:** [Aggregated top matching titles and prices across all useful images; note any per-image differences]
 **Gemini research:** [itemDescription and webFindings; list source URLs if present]
 
 ### Confidence
