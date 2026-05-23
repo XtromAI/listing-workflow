@@ -102,7 +102,13 @@ Return 3–5 sold comps with title, price, and link. Note the price range, how t
 
 ## STEP 6 — ARCHIVE TO DRAFTS
 
-Phase 1 ends here. Archive the photos and save a research summary before stopping.
+Phase 1 ends here. Present the completed research to the user and ask:
+
+> "Would you like to save this as a draft?"
+
+If the user says **no**, stop here without moving any files. Do not proceed to Phase 2 unless the user asks.
+
+If the user says **yes**, proceed:
 
 **1. Create the item subfolder inside `drafts\`.**
 Sanitize the item title from Step 4: lowercase, replace spaces with hyphens, strip characters invalid in folder names (`\ / : * ? " < > |`), trim to 50 characters. Create the folder `drafts\[sanitized-title]\` inside the existing `drafts\` directory.
