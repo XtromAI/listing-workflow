@@ -9,6 +9,7 @@ import {
 import * as getCategories from "./tools/getCategories.js";
 import * as getCategoryRequirements from "./tools/getCategoryRequirements.js";
 import * as searchByImage from "./tools/searchByImage.js";
+import * as searchListings from "./tools/searchListings.js";
 import * as visionDetect from "./tools/visionDetect.js";
 import * as geminiResearch from "./tools/geminiResearch.js";
 import * as uploadImage from "./tools/uploadImage.js";
@@ -28,6 +29,7 @@ const tools = [
   getCategories,
   getCategoryRequirements,
   searchByImage,
+  searchListings,
   visionDetect,
   geminiResearch,
   uploadImage,

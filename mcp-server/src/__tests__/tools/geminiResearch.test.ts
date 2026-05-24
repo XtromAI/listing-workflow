@@ -200,7 +200,7 @@ describe("gemini_item_research", () => {
         isAxiosError: true,
         response: { status: 429, data: {}, headers: {}, config: {} as never, statusText: "" },
       });
-      mockAxios.isAxiosError = vi.fn().mockReturnValue(true);
+      mockAxios.isAxiosError = vi.fn().mockReturnValue(true) as unknown as typeof mockAxios.isAxiosError;
       // Reject all attempts (retries included)
       mockAxios.post.mockRejectedValue(rateLimitError);
 
