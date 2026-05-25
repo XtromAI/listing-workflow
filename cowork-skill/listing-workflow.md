@@ -92,12 +92,10 @@ If confidence is LOW or MEDIUM, ask the user targeted follow-up questions based 
 
 Always research both platforms regardless of where the item is being listed. Cross-platform data improves pricing confidence and title/description quality.
 
-**eBay sold listings and active listings:**
-Call `ebay_search_listings` twice in parallel:
-- `{ keywords: "[item name]", soldOnly: true, limit: 5 }` — completed/sold comps
-- `{ keywords: "[item name]", soldOnly: false, limit: 5 }` — current active listings
+**eBay active listings:**
+Call `ebay_search_listings` with `{ keywords: "[item name]", soldOnly: false, limit: 5 }`.
 
-From the sold results, note the price range (low, average, high). From the active results, note the current asking price range. If either call returns no results, broaden the keywords (e.g. drop brand or model specifics) and try once more.
+Note the current asking price range. If the call returns no results, broaden the keywords (e.g. drop brand or model specifics) and try once more.
 
 **Etsy sold listings:**
 Search: `site:etsy.com [item name] sold`

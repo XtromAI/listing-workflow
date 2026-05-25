@@ -1,15 +1,10 @@
-import axios from "axios";
-
-function getFindingBaseUrl(): string {
-  return process.env.EBAY_ENVIRONMENT === "sandbox"
-    ? "https://svcs.sandbox.ebay.com/services/search/FindingService/v1"
-    : "https://svcs.ebay.com/services/search/FindingService/v1";
-}
+import axios, { AxiosError } from "axios";
+import { getAccessToken, getEbayBaseUrl } from "../auth/oauth.js";
 
 export const definition = {
   name: "ebay_search_listings",
   description:
-    "Search eBay for sold or active listings to use as pricing comps. Uses the Finding API — no Browse API approval required.",
+    "Search eBay for sold or active listings to use as pricing comps. soldOnly=true uses the Marketplace Insights API; soldOnly=false uses the Browse API.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -29,43 +24,66 @@ export async function handler(args: Record<string, unknown>) {
   const soldOnly = args.soldOnly !== false; // default true when omitted
   const limit = (args.limit as number | undefined) ?? 5;
 
-  const operation = soldOnly ? "findCompletedItems" : "findItemsByKeywords";
-  const responseRoot = soldOnly ? "findCompletedItemsResponse" : "findItemsByKeywordsResponse";
+  const token = await getAccessToken();
+  const base = getEbayBaseUrl();
+  const headers = { Authorization: `Bearer ${token}` };
 
-  const params: Record<string, unknown> = {
-    "OPERATION-NAME": operation,
-    "SERVICE-VERSION": "1.0.0",
-    "SECURITY-APPNAME": process.env.EBAY_CLIENT_ID,
-    "RESPONSE-DATA-FORMAT": "JSON",
-    keywords,
-    "paginationInput.entriesPerPage": limit,
-    sortOrder: soldOnly ? "EndTimeSoonest" : "BestMatch",
-  };
+  try {
+    if (soldOnly) {
+      const response = await axios.get(
+        `${base}/buy/marketplace_insights/v1_beta/item_sales/search`,
+        { params: { q: keywords, limit }, headers }
+      );
 
-  if (soldOnly) {
-    params["itemFilter(0).name"] = "SoldItemsOnly";
-    params["itemFilter(0).value"] = "true";
+      const items = (response.data.itemSales ?? []) as Array<{
+        title: string;
+        lastSoldPrice?: { value: string; currency: string };
+        lastSoldDate?: string;
+        condition?: string;
+        itemWebUrl?: string;
+      }>;
+
+      return items.map((item) => ({
+        title: item.title,
+        price: item.lastSoldPrice?.value ?? null,
+        currency: item.lastSoldPrice?.currency ?? "USD",
+        condition: item.condition ?? null,
+        endDate: item.lastSoldDate ?? null,
+        itemWebUrl: item.itemWebUrl ?? null,
+      }));
+    } else {
+      const response = await axios.get(
+        `${base}/buy/browse/v1/item_summary/search`,
+        { params: { q: keywords, limit }, headers }
+      );
+
+      const items = (response.data.itemSummaries ?? []) as Array<{
+        title: string;
+        price?: { value: string; currency: string };
+        condition?: string;
+        itemWebUrl: string;
+      }>;
+
+      return items.map((item) => ({
+        title: item.title,
+        price: item.price?.value ?? null,
+        currency: item.price?.currency ?? "USD",
+        condition: item.condition ?? null,
+        endDate: null,
+        itemWebUrl: item.itemWebUrl,
+      }));
+    }
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      const axErr = err as AxiosError;
+      if (axErr.response?.status === 403) {
+        const api = soldOnly ? "Marketplace Insights API" : "Browse API";
+        return { error: `${api} access not approved for this app — check developer.ebay.com` };
+      }
+      throw new Error(
+        `eBay API HTTP ${axErr.response?.status ?? "no-response"}: ${JSON.stringify(axErr.response?.data ?? axErr.message)}`
+      );
+    }
+    throw err;
   }
-
-  const response = await axios.get(getFindingBaseUrl(), { params });
-
-  const resp = response.data[responseRoot]?.[0];
-  if (resp?.ack?.[0] !== "Success") {
-    throw new Error(`Finding API error: ${JSON.stringify(resp?.errorMessage)}`);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const items: any[] = resp.searchResult?.[0]?.item ?? [];
-
-  return items.map((item) => {
-    const priceEntry = item.sellingStatus?.[0]?.currentPrice?.[0];
-    return {
-      title: item.title?.[0] ?? null,
-      price: priceEntry?.["__value__"] ?? null,
-      currency: priceEntry?.["@currencyId"] ?? "USD",
-      condition: item.condition?.[0]?.conditionDisplayName?.[0] ?? null,
-      endDate: item.listingInfo?.[0]?.endTime?.[0] ?? null,
-      itemWebUrl: item.viewItemURL?.[0] ?? null,
-    };
-  });
 }
