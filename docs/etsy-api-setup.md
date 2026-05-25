@@ -28,10 +28,15 @@ it — just tell it to proceed).
 1. Sign in at [https://www.etsy.com/developers](https://www.etsy.com/developers) using your
    Etsy seller account.
 2. Click **Create a new app**.
-3. Fill in the form:
-   - **App name:** `listing-workflow`
-   - **What will your app do?** Describe it as an internal tool for managing your own listings.
-   - **Who will use your app?** Select "Just me".
+3. Fill in the form EXACTLY as follows to avoid automated rejection:
+   - **App name:** `listing-workflow` (Ensure you DO NOT use the word "Etsy" in the name, e.g., avoid "MyEtsyLister").
+   - **Website URL:** Enter your actual Etsy Shop URL (e.g., `https://www.etsy.com/shop/YourShopName`). **Do not use `localhost` here.**
+   - **What type of application are you building?** Select **Seller Tools**.
+   - **Who will be the users of this application?** Select **Just myself or colleagues** (This ensures Personal Access tier).
+   - **Is your application commercial?** Select **No**.
+   - **Will your app do any of the following?** Check **Upload or edit listings** (Leave others unchecked).
+   - **What will your app do?** Copy and paste the following exact description:
+     *This is a private, local-first integration built exclusively for personal use to manage inventory for my own shop. The application uses OAuth 2.0 (PKCE) to securely connect to my shop. It reads taxonomy data (GET /application/seller-taxonomy/nodes), and pushes new product listings (POST /application/shops/{shop_id}/listings) from my local database. It is an internal workflow automation tool that will not be distributed to any third parties, other sellers, or used for commercial API access.*
 4. Submit. After review (usually instant for personal apps), your app appears in **Your Apps**.
 5. From your app's detail page, copy the **Keystring**. This single value maps to both
    `ETSY_API_KEY` and `ETSY_CLIENT_ID`.
