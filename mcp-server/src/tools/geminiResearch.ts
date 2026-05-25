@@ -96,6 +96,8 @@ export async function handler(args: Record<string, unknown>) {
     }
   }
 
+  if (!response) throw new Error("Gemini request failed after all retries");
+
   const rawText: string =
     response.data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
