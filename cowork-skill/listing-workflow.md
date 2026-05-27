@@ -117,34 +117,56 @@ Sanitize the item title from Step 4: lowercase, replace spaces with hyphens, str
 **2. Move all photos.**
 Move every image from `Inbox\` into `drafts\[sanitized-title]\`. Confirm all files moved successfully.
 
-**3. Save the research summary.**
-Write a file `drafts\[sanitized-title]\research-summary.md` containing:
+**3. Create the item log.**
+Write a file `drafts\[sanitized-title]\item-log.md`. This file is an append-only log; each entry has a header with entry number, type, and date. The first entry is the research summary:
 
 ```
 # [Item title from Step 4]
 
-## Item Identification
+---
+
+## Entry 1 — Research — [YYYY-MM-DD]
+
+### Item Identification
 [Full Item Identification block from Step 4]
 
-## Signal Breakdown
+### Signal Breakdown
 [Full Signal Breakdown block from Step 4]
 
-## Confidence
+### Confidence
 [Full Confidence block from Step 4]
 
-## Market Research
+### Market Research
 
-### eBay Sold Comps
+#### eBay Comps
 [3–5 comps from Step 5 with title, price, link]
 Sold price range: $[low] – $[high] | Active listings: $[range]
 
-### Etsy Sold Comps
+#### Etsy Sold Comps
 [3–5 comps from Step 5 with title, price, link]
 Sold price range: $[low] – $[high]
 ```
 
+**Future log entries** are appended to this same file whenever something significant happens to the listing — it is never overwritten. Entry types and their content:
+
+- **Listed** (Step 12): Full listing details for each platform posted — title, price, SKU/listing ID, URL, condition, description, item specifics, dimensions/weight, tags (Etsy). Added automatically when the item is published.
+- **Price Change**: New price, old price, platform, reason if provided by user.
+- **Sold**: Sale price, platform, date, buyer location (city/state if known), notes.
+- **Relisted**: If taken down and reposted — new listing ID/URL and any changes made.
+- **Other**: Any other notable event (e.g. offer accepted, item returned, listing ended).
+
+Each future entry follows this header format:
+
+```
+---
+
+## Entry [N] — [Type] — [YYYY-MM-DD]
+
+[Entry content]
+```
+
 **4. Stop and report.**
-Tell the user the drafts folder path and the research summary path. Do not proceed to Phase 2. Wait for the user to say they want to create a listing.
+Tell the user the drafts folder path and the item log path. Do not proceed to Phase 2. Wait for the user to say they want to create a listing.
 
 ---
 
@@ -183,6 +205,16 @@ Note any properties marked `required: true` and collect values for them.
 
 Write a draft for each platform the user is listing on. Use the item identification from Step 4 as your source of truth for all factual claims — brand, model, materials, era. Platforms have different style expectations.
 
+**If eBay is one of the platforms:** Before writing the eBay draft, ask the user for the shipping package dimensions and weight:
+
+> "What are the packed box dimensions and weight for shipping?
+> - Weight (lbs):
+> - Length (inches):
+> - Width (inches):
+> - Height (inches):"
+
+Wait for the user's response before drafting. Use these exact values in the eBay draft and when calling `ebay_create_inventory_item` in Step 11.
+
 ---
 
 ### eBay Draft
@@ -193,7 +225,8 @@ CATEGORY: [name — ID]
 CONDITION: [inventoryApiCondition value from Step 8 — e.g. USED_EXCELLENT]
 CONDITION NOTES: [1-2 sentences about visible state]
 PRICE: $[recommended] (eBay sold range: $[low]–$[high])
-WEIGHT: [estimated shipping weight in pounds]
+WEIGHT: [X lbs]
+PACKAGE DIMENSIONS: [L × W × H inches]
 DESCRIPTION:
 [HTML — 3-4 paragraphs: what it is, key features, condition detail, what's included, shipping note]
 
@@ -253,7 +286,8 @@ Call `ebay_create_inventory_item` with:
 - `sku`, `title`, `description`, `condition`, `conditionDescription`
 - `imageUrls` (all from `ebay_upload_image`)
 - `itemSpecifics` (all required aspects from Step 8, plus Brand and Model)
-- `weightLbs` — estimated shipping weight in pounds (required by eBay to publish)
+- `weightLbs` — from the user's answer in Step 9 (required by eBay to publish)
+- `packageLengthIn`, `packageWidthIn`, `packageHeightIn` — from the user's answer in Step 9 (enables accurate eBay shipping estimates)
 
 Call `ebay_create_offer` with:
 - `sku`, `categoryId`, `price`, `currency` (USD), `quantity` (1)
@@ -284,16 +318,50 @@ Call `etsy_publish_listing` with the `listingId`. Save the returned `listingUrl`
 
 ---
 
-## STEP 12 — MOVE TO LISTINGS
+## STEP 12 — MOVE TO LISTINGS AND LOG
 
-After all platforms are successfully published, move the item's drafts subfolder into the existing `listings\` directory.
+After all platforms are successfully published:
 
-1. Move `drafts\[sanitized-title]\` (the entire folder and all its contents) into `listings\`, so it becomes `listings\[sanitized-title]\`.
-2. Confirm the folder and all files moved successfully before continuing.
+1. **Append a "Listed" entry to `item-log.md`** (while it is still in `drafts\[sanitized-title]\`). The entry number is one more than the last entry in the file. Include every piece of information used to create the listing(s):
+
+```
+---
+
+## Entry [N] — Listed — [YYYY-MM-DD]
+
+### eBay  *(omit section if not listed on eBay)*
+- **Listing URL:** [url]
+- **SKU:** [sku]
+- **Listing ID:** [listingId]
+- **Title:** [title]
+- **Category:** [name — ID]
+- **Condition:** [condition code]
+- **Condition Notes:** [conditionDescription]
+- **Price:** $[price]
+- **Weight:** [X lbs]
+- **Package Dimensions:** [L × W × H inches]
+- **Item Specifics:** [key: value pairs]
+- **Description:** [full HTML description]
+
+### Etsy  *(omit section if not listed on Etsy)*
+- **Listing URL:** [url]
+- **Listing ID:** [listingId]
+- **Title:** [title]
+- **Taxonomy:** [node name — ID]
+- **Who Made:** [whoMade]
+- **When Made:** [whenMade]
+- **Price:** $[price]
+- **Tags:** [comma-separated]
+- **Materials:** [comma-separated]
+- **Description:** [full plain-text description]
+```
+
+2. **Move the folder.** Move `drafts\[sanitized-title]\` (the entire folder and all its contents, including the updated `item-log.md`) into `listings\`, so it becomes `listings\[sanitized-title]\`.
+3. Confirm the folder and all files moved successfully before continuing.
 
 ## STEP 13 — CONFIRM
 
-Show the user each live listing URL (one per platform). Show the `listings\[sanitized-title]\` folder path. Offer to list another item.
+Show the user each live listing URL (one per platform). Show the `listings\[sanitized-title]\` folder path and the `item-log.md` path. Remind the user that price changes, sales, and other events can be appended to the log as new entries. Offer to list another item.
 
 ---
 
