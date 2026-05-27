@@ -341,7 +341,9 @@ After all platforms are successfully published:
 - **Weight:** [X lbs]
 - **Package Dimensions:** [L × W × H inches]
 - **Item Specifics:** [key: value pairs]
-- **Description:** [full HTML description]
+- **Description:**
+
+[paste the complete HTML description exactly as submitted to eBay]
 
 ### Etsy  *(omit section if not listed on Etsy)*
 - **Listing URL:** [url]
@@ -353,7 +355,9 @@ After all platforms are successfully published:
 - **Price:** $[price]
 - **Tags:** [comma-separated]
 - **Materials:** [comma-separated]
-- **Description:** [full plain-text description]
+- **Description:**
+
+[paste the complete plain-text description exactly as submitted to Etsy]
 ```
 
 2. **Move the folder.** Move `drafts\[sanitized-title]\` (the entire folder and all its contents, including the updated `item-log.md`) into `listings\`, so it becomes `listings\[sanitized-title]\`.
