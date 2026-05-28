@@ -44,6 +44,14 @@ describe("ebay_create_inventory_item", () => {
       expect(required).toContain("condition");
       expect(required).toContain("weightLbs");
     });
+
+    it("exposes optional dimension properties in the schema", () => {
+      const props = definition.inputSchema.properties;
+      expect(props).toHaveProperty("packageLengthIn");
+      expect(props).toHaveProperty("packageWidthIn");
+      expect(props).toHaveProperty("packageHeightIn");
+      expect(definition.inputSchema.required).not.toContain("packageLengthIn");
+    });
   });
 
   describe("handler", () => {
@@ -123,11 +131,38 @@ describe("ebay_create_inventory_item", () => {
       expect(body).not.toHaveProperty("conditionDescription");
     });
 
-    it("sends packageWeightAndSize with weight in POUND unit", async () => {
+    it("sends packageWeightAndSize with weight in POUND unit and no dimensions when omitted", async () => {
       await handler({ ...BASE_ARGS, weightLbs: 2.5 });
       const [, body] = mockAxios.put.mock.calls[0];
       expect((body as Record<string, unknown>).packageWeightAndSize).toEqual({
         weight: { value: 2.5, unit: "POUND" },
+      });
+    });
+
+    it("includes dimensions in packageWeightAndSize when all three are provided", async () => {
+      await handler({
+        ...BASE_ARGS,
+        weightLbs: 2.5,
+        packageLengthIn: 12,
+        packageWidthIn: 8,
+        packageHeightIn: 6,
+      });
+      const [, body] = mockAxios.put.mock.calls[0];
+      expect((body as Record<string, unknown>).packageWeightAndSize).toEqual({
+        weight: { value: 2.5, unit: "POUND" },
+        dimensions: {
+          length: { value: 12, unit: "INCH" },
+          width: { value: 8, unit: "INCH" },
+          height: { value: 6, unit: "INCH" },
+        },
+      });
+    });
+
+    it("omits dimensions when only some are provided", async () => {
+      await handler({ ...BASE_ARGS, packageLengthIn: 12, packageWidthIn: 8 });
+      const [, body] = mockAxios.put.mock.calls[0];
+      expect((body as Record<string, unknown>).packageWeightAndSize).toEqual({
+        weight: { value: 1.2, unit: "POUND" },
       });
     });
 
