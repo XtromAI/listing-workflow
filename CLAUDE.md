@@ -62,6 +62,7 @@ Copy `mcp-server/.env.example` to `mcp-server/.env` and fill in values. Variable
 
 Key groupings:
 - eBay: `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_REFRESH_TOKEN`, `EBAY_RUNAME`, `EBAY_ENVIRONMENT`, `EBAY_FULFILLMENT_POLICY_ID`, `EBAY_PAYMENT_POLICY_ID`, `EBAY_RETURN_POLICY_ID`
+- eBay local pickup: `EBAY_LOCAL_PICKUP_FULFILLMENT_POLICY_ID`, `EBAY_LOCAL_PICKUP_PAYMENT_POLICY_ID` — set these to the policy IDs of the local pickup fulfillment policy and the pay-in-person payment policy created in eBay Seller Hub. When `localPickup: true` is passed to `ebay_create_offer`, these are used instead of the standard shipping policies.
 - Google: `GOOGLE_VISION_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`
 - Etsy: `ETSY_API_KEY`, `ETSY_CLIENT_ID` (same value as `ETSY_API_KEY`), `ETSY_REFRESH_TOKEN`, `ETSY_SHOP_ID`, `ETSY_SHIPPING_PROFILE_ID`, `ETSY_RETURN_POLICY_ID`
 

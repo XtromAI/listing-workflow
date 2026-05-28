@@ -32,6 +32,8 @@ describe("ebay_create_offer", () => {
     process.env.EBAY_PAYMENT_POLICY_ID = "pp-456";
     process.env.EBAY_RETURN_POLICY_ID = "rp-789";
     process.env.EBAY_MERCHANT_LOCATION_KEY = "location-001";
+    process.env.EBAY_LOCAL_PICKUP_FULFILLMENT_POLICY_ID = "lp-fp-111";
+    process.env.EBAY_LOCAL_PICKUP_PAYMENT_POLICY_ID = "lp-pp-222";
     mockAxios.post.mockResolvedValue({ data: { offerId: "offer-abc" } });
   });
 
@@ -47,6 +49,11 @@ describe("ebay_create_offer", () => {
       expect(required).toContain("price");
       expect(required).toContain("currency");
       expect(required).toContain("listingDescription");
+    });
+
+    it("exposes optional localPickup property in the schema", () => {
+      expect(definition.inputSchema.properties).toHaveProperty("localPickup");
+      expect(definition.inputSchema.required).not.toContain("localPickup");
     });
   });
 
@@ -71,12 +78,32 @@ describe("ebay_create_offer", () => {
       });
     });
 
-    it("reads listing policy IDs from environment variables", async () => {
+    it("uses standard shipping policies when localPickup is not set", async () => {
       await handler(BASE_ARGS);
       const [, body] = mockAxios.post.mock.calls[0];
       expect((body as Record<string, unknown>).listingPolicies).toEqual({
         fulfillmentPolicyId: "fp-123",
         paymentPolicyId: "pp-456",
+        returnPolicyId: "rp-789",
+      });
+    });
+
+    it("uses standard shipping policies when localPickup is false", async () => {
+      await handler({ ...BASE_ARGS, localPickup: false });
+      const [, body] = mockAxios.post.mock.calls[0];
+      expect((body as Record<string, unknown>).listingPolicies).toEqual({
+        fulfillmentPolicyId: "fp-123",
+        paymentPolicyId: "pp-456",
+        returnPolicyId: "rp-789",
+      });
+    });
+
+    it("uses local pickup policies when localPickup is true", async () => {
+      await handler({ ...BASE_ARGS, localPickup: true });
+      const [, body] = mockAxios.post.mock.calls[0];
+      expect((body as Record<string, unknown>).listingPolicies).toEqual({
+        fulfillmentPolicyId: "lp-fp-111",
+        paymentPolicyId: "lp-pp-222",
         returnPolicyId: "rp-789",
       });
     });

@@ -176,6 +176,12 @@ Tell the user the drafts folder path and the item log path. Do not proceed to Ph
 
 Ask the user which platform(s) to list on: **eBay**, **Etsy**, or **both**.
 
+If **eBay** is included, ask:
+> "Will this eBay listing be **shipped** or **local pickup only**?"
+
+- **Shipped** — standard fulfillment and payment policies; eBay shows calculated shipping rates to buyers.
+- **Local pickup only** — uses the local pickup fulfillment policy and the pay-in-person payment policy; eBay shows no shipping option, only local pickup.
+
 If **Etsy** is included, also collect:
 - Who made it? (You / Someone else / Collective — maps to `whoMade`)
 - When was it made? (Decade or era — maps to `whenMade`. See Appendix A.)
@@ -205,15 +211,30 @@ Note any properties marked `required: true` and collect values for them.
 
 Write a draft for each platform the user is listing on. Use the item identification from Step 4 as your source of truth for all factual claims — brand, model, materials, era. Platforms have different style expectations.
 
-**If eBay is one of the platforms:** Before writing the eBay draft, ask the user for the shipping package dimensions and weight:
+**If eBay is one of the platforms:** Before writing the eBay draft, collect package dimensions and weight. The approach differs by shipping method:
 
-> "What are the packed box dimensions and weight for shipping?
+**Shipped listings:**
+Based on your visual assessment of the item — its form factor, materials, and apparent size — produce a reasoned estimate for the packed box. Show your reasoning briefly (e.g. "Looks like roughly a shoebox-sized item, so I'm estimating…"), then present the estimate and ask the user to confirm or correct:
+
+> "I estimate this will ship in approximately a **[L] × [W] × [H] in, [X] lb** package.
+> Please confirm or provide actual measurements:
+> - Weight (lbs): [your estimate]
+> - Length (inches): [your estimate]
+> - Width (inches): [your estimate]
+> - Height (inches): [your estimate]"
+
+Wait for the user to confirm or correct before drafting. Use the confirmed values in the draft and in Step 11.
+
+**Local pickup only listings:**
+eBay still requires weight and dimensions on the inventory item record. Ask the user directly:
+
+> "Please provide the package dimensions and weight for the eBay inventory record:
 > - Weight (lbs):
 > - Length (inches):
 > - Width (inches):
 > - Height (inches):"
 
-Wait for the user's response before drafting. Use these exact values in the eBay draft and when calling `ebay_create_inventory_item` in Step 11.
+Wait for the user's response before drafting. Use these values in Step 11.
 
 ---
 
@@ -225,10 +246,12 @@ CATEGORY: [name — ID]
 CONDITION: [inventoryApiCondition value from Step 8 — e.g. USED_EXCELLENT]
 CONDITION NOTES: [1-2 sentences about visible state]
 PRICE: $[recommended] (eBay sold range: $[low]–$[high])
+SHIPPING: [Shipped — calculated rates | Local pickup only]
 WEIGHT: [X lbs]
 PACKAGE DIMENSIONS: [L × W × H inches]
 DESCRIPTION:
-[HTML — 3-4 paragraphs: what it is, key features, condition detail, what's included, shipping note]
+[HTML — 3-4 paragraphs: what it is, key features, condition detail, what's included]
+[For shipped: include a shipping note. For local pickup only: state "Local pickup only — no shipping available." instead of a shipping note]
 
 ITEM SPECIFICS:
 [All required aspects from Step 8, plus Brand, Model, and any others relevant]
@@ -292,6 +315,7 @@ Call `ebay_create_inventory_item` with:
 Call `ebay_create_offer` with:
 - `sku`, `categoryId`, `price`, `currency` (USD), `quantity` (1)
 - `listingDescription` (same HTML as the eBay description above)
+- `localPickup: true` if the shipping method selected in Step 7 is local pickup only; omit (or `false`) for shipped listings. This selects the correct fulfillment and payment policy pair from the environment variables.
 
 Call `ebay_publish_offer` with the `offerId`. Save the returned `listingId` and URL.
 
@@ -338,6 +362,7 @@ After all platforms are successfully published:
 - **Condition:** [condition code]
 - **Condition Notes:** [conditionDescription]
 - **Price:** $[price]
+- **Shipping Method:** [Shipped | Local pickup only]
 - **Weight:** [X lbs]
 - **Package Dimensions:** [L × W × H inches]
 - **Item Specifics:** [key: value pairs]

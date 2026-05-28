@@ -13,19 +13,24 @@ export const definition = {
       currency: { type: "string", description: "Currency code (e.g. USD)" },
       quantity: { type: "number", description: "Quantity available (default 1)" },
       listingDescription: { type: "string", description: "HTML listing description" },
+      localPickup: {
+        type: "boolean",
+        description: "When true, applies the local pickup fulfillment and payment policies (EBAY_LOCAL_PICKUP_FULFILLMENT_POLICY_ID / EBAY_LOCAL_PICKUP_PAYMENT_POLICY_ID) instead of the standard shipping policies",
+      },
     },
     required: ["sku", "categoryId", "price", "currency", "listingDescription"],
   },
 };
 
 export async function handler(args: Record<string, unknown>) {
-  const { sku, categoryId, price, currency, quantity, listingDescription } = args as {
+  const { sku, categoryId, price, currency, quantity, listingDescription, localPickup } = args as {
     sku: string;
     categoryId: string;
     price: number;
     currency: string;
     quantity?: number;
     listingDescription: string;
+    localPickup?: boolean;
   };
 
   const token = await getAccessToken();
@@ -34,7 +39,16 @@ export async function handler(args: Record<string, unknown>) {
     EBAY_PAYMENT_POLICY_ID,
     EBAY_RETURN_POLICY_ID,
     EBAY_MERCHANT_LOCATION_KEY,
+    EBAY_LOCAL_PICKUP_FULFILLMENT_POLICY_ID,
+    EBAY_LOCAL_PICKUP_PAYMENT_POLICY_ID,
   } = process.env;
+
+  const fulfillmentPolicyId = localPickup
+    ? EBAY_LOCAL_PICKUP_FULFILLMENT_POLICY_ID
+    : EBAY_FULFILLMENT_POLICY_ID;
+  const paymentPolicyId = localPickup
+    ? EBAY_LOCAL_PICKUP_PAYMENT_POLICY_ID
+    : EBAY_PAYMENT_POLICY_ID;
 
   let response;
   try {
@@ -52,8 +66,8 @@ export async function handler(args: Record<string, unknown>) {
         categoryId,
         merchantLocationKey: EBAY_MERCHANT_LOCATION_KEY,
         listingPolicies: {
-          fulfillmentPolicyId: EBAY_FULFILLMENT_POLICY_ID,
-          paymentPolicyId: EBAY_PAYMENT_POLICY_ID,
+          fulfillmentPolicyId,
+          paymentPolicyId,
           returnPolicyId: EBAY_RETURN_POLICY_ID,
         },
       },
