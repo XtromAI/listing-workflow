@@ -97,9 +97,10 @@ export async function handler(args: Record<string, unknown>) {
           ...(packageLengthIn && packageWidthIn && packageHeightIn
             ? {
                 dimensions: {
-                  length: { value: packageLengthIn, unit: "INCH" },
-                  width: { value: packageWidthIn, unit: "INCH" },
-                  height: { value: packageHeightIn, unit: "INCH" },
+                  length: packageLengthIn,
+                  width: packageWidthIn,
+                  height: packageHeightIn,
+                  unit: "INCH",
                 },
               }
             : {}),

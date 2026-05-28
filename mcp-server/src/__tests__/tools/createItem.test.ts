@@ -151,9 +151,10 @@ describe("ebay_create_inventory_item", () => {
       expect((body as Record<string, unknown>).packageWeightAndSize).toEqual({
         weight: { value: 2.5, unit: "POUND" },
         dimensions: {
-          length: { value: 12, unit: "INCH" },
-          width: { value: 8, unit: "INCH" },
-          height: { value: 6, unit: "INCH" },
+          length: 12,
+          width: 8,
+          height: 6,
+          unit: "INCH",
         },
       });
     });
