@@ -176,12 +176,6 @@ Tell the user the drafts folder path and the item log path. Do not proceed to Ph
 
 Ask the user which platform(s) to list on: **eBay**, **Etsy**, or **both**.
 
-If **eBay** is included, ask:
-> "Will this eBay listing be **shipped** or **local pickup only**?"
-
-- **Shipped** — standard fulfillment and payment policies; eBay shows calculated shipping rates to buyers.
-- **Local pickup only** — uses the local pickup fulfillment policy and the pay-in-person payment policy; eBay shows no shipping option, only local pickup.
-
 If **Etsy** is included, also collect:
 - Who made it? (You / Someone else / Collective — maps to `whoMade`)
 - When was it made? (Decade or era — maps to `whenMade`. See Appendix A.)
@@ -211,30 +205,7 @@ Note any properties marked `required: true` and collect values for them.
 
 Write a draft for each platform the user is listing on. Use the item identification from Step 4 as your source of truth for all factual claims — brand, model, materials, era. Platforms have different style expectations.
 
-**If eBay is one of the platforms:** Before writing the eBay draft, collect package dimensions and weight. The approach differs by shipping method:
-
-**Shipped listings:**
-Based on your visual assessment of the item — its form factor, materials, and apparent size — produce a reasoned estimate for the packed box. Show your reasoning briefly (e.g. "Looks like roughly a shoebox-sized item, so I'm estimating…"), then present the estimate and ask the user to confirm or correct:
-
-> "I estimate this will ship in approximately a **[L] × [W] × [H] in, [X] lb** package.
-> Please confirm or provide actual measurements:
-> - Weight (lbs): [your estimate]
-> - Length (inches): [your estimate]
-> - Width (inches): [your estimate]
-> - Height (inches): [your estimate]"
-
-Wait for the user to confirm or correct before drafting. Use the confirmed values in the draft and in Step 11.
-
-**Local pickup only listings:**
-eBay still requires weight and dimensions on the inventory item record. Ask the user directly:
-
-> "Please provide the package dimensions and weight for the eBay inventory record:
-> - Weight (lbs):
-> - Length (inches):
-> - Width (inches):
-> - Height (inches):"
-
-Wait for the user's response before drafting. Use these values in Step 11.
+**If eBay is one of the platforms:** Based on your visual assessment of the item — its form factor, materials, and apparent size — produce a reasoned estimate for the packed box. Show your reasoning briefly (e.g. "Looks like roughly a shoebox-sized item, so I'm estimating…"), then use these estimates directly in the draft. Default the shipping method to **Shipped**. Do not pause to ask the user — they will confirm or adjust shipping method and dimensions at Step 10.
 
 ---
 
@@ -246,12 +217,11 @@ CATEGORY: [name — ID]
 CONDITION: [inventoryApiCondition value from Step 8 — e.g. USED_EXCELLENT]
 CONDITION NOTES: [1-2 sentences about visible state]
 PRICE: $[recommended] (eBay sold range: $[low]–$[high])
-SHIPPING: [Shipped — calculated rates | Local pickup only]
-WEIGHT: [X lbs]
-PACKAGE DIMENSIONS: [L × W × H inches]
+SHIPPING: Shipped — calculated rates
+WEIGHT: [X lbs — estimated]
+PACKAGE DIMENSIONS: [L × W × H inches — estimated]
 DESCRIPTION:
-[HTML — 3-4 paragraphs: what it is, key features, condition detail, what's included]
-[For shipped: include a shipping note. For local pickup only: state "Local pickup only — no shipping available." instead of a shipping note]
+[HTML — 3-4 paragraphs: what it is, key features, condition detail, what's included, shipping note]
 
 ITEM SPECIFICS:
 [All required aspects from Step 8, plus Brand, Model, and any others relevant]
@@ -290,9 +260,15 @@ DESCRIPTION:
 
 ## STEP 10 — PRESENT FOR APPROVAL
 
-Show all draft(s) and ask:
+Show all draft(s). For eBay listings, after presenting the draft, explicitly call out the shipping defaults:
 
-> "Does this look correct? Approve to post, or tell me what to change."
+> "I've defaulted to **Shipped** with an estimated package of **[X lbs, L × W × H in]**. Confirm to keep these, provide corrected values, or say **local pickup** to switch to local pickup only (no shipping)."
+
+Then ask:
+
+> "Does everything else look correct? Approve to post, or tell me what to change."
+
+If the user selects local pickup, update the shipping method to **Local pickup only** and replace the shipping note in the description with "Local pickup only — no shipping available." before posting.
 
 Wait for explicit approval before proceeding. Do not call any posting tools yet.
 
@@ -309,13 +285,13 @@ Call `ebay_create_inventory_item` with:
 - `sku`, `title`, `description`, `condition`, `conditionDescription`
 - `imageUrls` (all from `ebay_upload_image`)
 - `itemSpecifics` (all required aspects from Step 8, plus Brand and Model)
-- `weightLbs` — from the user's answer in Step 9 (required by eBay to publish)
-- `packageLengthIn`, `packageWidthIn`, `packageHeightIn` — from the user's answer in Step 9 (enables accurate eBay shipping estimates)
+- `weightLbs` — from the confirmed values in Step 10 (required by eBay to publish)
+- `packageLengthIn`, `packageWidthIn`, `packageHeightIn` — from the confirmed values in Step 10 (enables accurate eBay shipping estimates)
 
 Call `ebay_create_offer` with:
 - `sku`, `categoryId`, `price`, `currency` (USD), `quantity` (1)
-- `listingDescription` (same HTML as the eBay description above)
-- `localPickup: true` if the shipping method selected in Step 7 is local pickup only; omit (or `false`) for shipped listings. This selects the correct fulfillment and payment policy pair from the environment variables.
+- `listingDescription` (same HTML as the eBay description above, updated for local pickup if applicable)
+- `localPickup: true` if the user selected local pickup in Step 10; omit (or `false`) for shipped listings. This selects the correct fulfillment and payment policy pair from the environment variables.
 
 Call `ebay_publish_offer` with the `offerId`. Save the returned `listingId` and URL.
 

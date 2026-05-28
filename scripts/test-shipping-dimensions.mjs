@@ -113,6 +113,18 @@ async function upsertItem(token, sku, withDimensions) {
   }
 }
 
+async function getItem(token, sku) {
+  const res = await fetch(
+    `${BASE_URL}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`,
+    { method: "GET", headers: { Authorization: `Bearer ${token}`, "Accept-Language": "en-US" } }
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw Object.assign(new Error("Get failed"), { response: { status: res.status, data } });
+  }
+  return res.json();
+}
+
 async function deleteItem(token, sku) {
   const res = await fetch(
     `${BASE_URL}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`,
@@ -138,18 +150,62 @@ try {
   process.exit(1);
 }
 
+// --- item with full dimensions ---
 try {
   await upsertItem(token, SKU_WITH_DIMS, true);
-  ok(`Created item with L/W/H dimensions (SKU: ${SKU_WITH_DIMS})`);
+  ok(`PUT accepted for item with L/W/H dimensions (SKU: ${SKU_WITH_DIMS})`);
 } catch (err) {
   fail(`Create item with dimensions (SKU: ${SKU_WITH_DIMS})`, err);
 }
 
 try {
+  const item = await getItem(token, SKU_WITH_DIMS);
+  const pkg = item.packageWeightAndSize;
+  const w = pkg?.weight;
+  const d = pkg?.dimensions;
+
+  if (w?.value === 1.5 && w?.unit === "POUND") {
+    ok(`Weight stored correctly (${w.value} ${w.unit})`);
+  } else {
+    fail(`Weight mismatch`, new Error(`expected 1.5 POUND, got ${JSON.stringify(w)}`));
+  }
+
+  if (d?.length === 12 && d?.width === 8 && d?.height === 6 && d?.unit === "INCH") {
+    ok(`Dimensions stored correctly (${d.length}×${d.width}×${d.height} ${d.unit})`);
+  } else {
+    fail(`Dimensions mismatch`, new Error(`expected 12×8×6 INCH, got ${JSON.stringify(d)}`));
+  }
+} catch (err) {
+  fail(`GET item with dimensions`, err);
+}
+
+// --- weight-only item ---
+try {
   await upsertItem(token, SKU_WEIGHT_ONLY, false);
-  ok(`Created weight-only item, no dimensions (SKU: ${SKU_WEIGHT_ONLY})`);
+  ok(`PUT accepted for weight-only item (SKU: ${SKU_WEIGHT_ONLY})`);
 } catch (err) {
   fail(`Create weight-only item (SKU: ${SKU_WEIGHT_ONLY})`, err);
+}
+
+try {
+  const item = await getItem(token, SKU_WEIGHT_ONLY);
+  const pkg = item.packageWeightAndSize;
+  const w = pkg?.weight;
+  const d = pkg?.dimensions;
+
+  if (w?.value === 1.5 && w?.unit === "POUND") {
+    ok(`Weight stored correctly (${w.value} ${w.unit})`);
+  } else {
+    fail(`Weight mismatch`, new Error(`expected 1.5 POUND, got ${JSON.stringify(w)}`));
+  }
+
+  if (!d) {
+    ok("No dimensions stored (as expected)");
+  } else {
+    fail("Dimensions present but should be absent", new Error(JSON.stringify(d)));
+  }
+} catch (err) {
+  fail(`GET weight-only item`, err);
 }
 
 console.log("\n  Cleaning up...");

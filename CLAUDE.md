@@ -82,6 +82,17 @@ vi.mock("../../auth/oauth.js", () => ({
 
 There is no Etsy sandbox — all Etsy API calls hit production. To test Etsy tools manually, create a draft listing and delete it from Etsy Shop Manager afterward.
 
+## Live Integration Tests
+
+`scripts/` contains live tests that call the real APIs (eBay production, Gemini, etc.) and are run manually — not in CI. Each script is a plain `.mjs` file, uses native `fetch`, and loads credentials from `mcp-server/.env`.
+
+```bash
+node scripts/test-shipping-dimensions.mjs   # eBay inventory item weight + dimensions round-trip
+node scripts/test-gemini.mjs                # Gemini text, grounding, and image input
+```
+
+When adding a new tool, add a corresponding script here if it touches an external API that can't be covered by vitest mocks alone.
+
 ## eBay-Specific Notes
 
 - eBay's Browse API (`ebay_search_by_image`) requires production eligibility approval — it is not self-service. The tool returns a graceful error if access is denied, and the skill continues using Vision + Gemini instead.
