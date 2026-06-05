@@ -30,7 +30,19 @@ export const definition = {
       },
       weightLbs: {
         type: "number",
-        description: "Estimated shipping weight in pounds — required by eBay to publish",
+        description: "Shipping weight in pounds — required by eBay to publish",
+      },
+      packageLengthIn: {
+        type: "number",
+        description: "Packed box length in inches (optional but improves eBay shipping estimate)",
+      },
+      packageWidthIn: {
+        type: "number",
+        description: "Packed box width in inches",
+      },
+      packageHeightIn: {
+        type: "number",
+        description: "Packed box height in inches",
       },
     },
     required: ["sku", "title", "description", "condition", "weightLbs"],
@@ -47,6 +59,9 @@ export async function handler(args: Record<string, unknown>) {
     imageUrls,
     itemSpecifics,
     weightLbs,
+    packageLengthIn,
+    packageWidthIn,
+    packageHeightIn,
   } = args as {
     sku: string;
     title: string;
@@ -56,6 +71,9 @@ export async function handler(args: Record<string, unknown>) {
     imageUrls: string[];
     itemSpecifics?: Record<string, string>;
     weightLbs: number;
+    packageLengthIn?: number;
+    packageWidthIn?: number;
+    packageHeightIn?: number;
   };
 
   const aspects: Record<string, string[]> = {};
@@ -76,6 +94,16 @@ export async function handler(args: Record<string, unknown>) {
         ...(conditionDescription ? { conditionDescription } : {}),
         packageWeightAndSize: {
           weight: { value: weightLbs, unit: "POUND" },
+          ...(packageLengthIn && packageWidthIn && packageHeightIn
+            ? {
+                dimensions: {
+                  length: packageLengthIn,
+                  width: packageWidthIn,
+                  height: packageHeightIn,
+                  unit: "INCH",
+                },
+              }
+            : {}),
         },
         availability: {
           shipToLocationAvailability: { quantity: 1 },

@@ -62,6 +62,7 @@ Copy `mcp-server/.env.example` to `mcp-server/.env` and fill in values. Variable
 
 Key groupings:
 - eBay: `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_REFRESH_TOKEN`, `EBAY_RUNAME`, `EBAY_ENVIRONMENT`, `EBAY_FULFILLMENT_POLICY_ID`, `EBAY_PAYMENT_POLICY_ID`, `EBAY_RETURN_POLICY_ID`
+- eBay local pickup: `EBAY_LOCAL_PICKUP_FULFILLMENT_POLICY_ID`, `EBAY_LOCAL_PICKUP_PAYMENT_POLICY_ID` — set these to the policy IDs of the local pickup fulfillment policy and the pay-in-person payment policy created in eBay Seller Hub. When `localPickup: true` is passed to `ebay_create_offer`, these are used instead of the standard shipping policies.
 - Google: `GOOGLE_VISION_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`
 - Etsy: `ETSY_API_KEY`, `ETSY_CLIENT_ID` (same value as `ETSY_API_KEY`), `ETSY_REFRESH_TOKEN`, `ETSY_SHOP_ID`, `ETSY_SHIPPING_PROFILE_ID`, `ETSY_RETURN_POLICY_ID`
 
@@ -80,6 +81,17 @@ vi.mock("../../auth/oauth.js", () => ({
 ```
 
 There is no Etsy sandbox — all Etsy API calls hit production. To test Etsy tools manually, create a draft listing and delete it from Etsy Shop Manager afterward.
+
+## Live Integration Tests
+
+`scripts/` contains live tests that call the real APIs (eBay production, Gemini, etc.) and are run manually — not in CI. Each script is a plain `.mjs` file, uses native `fetch`, and loads credentials from `mcp-server/.env`.
+
+```bash
+node scripts/test-shipping-dimensions.mjs   # eBay inventory item weight + dimensions round-trip
+node scripts/test-gemini.mjs                # Gemini text, grounding, and image input
+```
+
+When adding a new tool, add a corresponding script here if it touches an external API that can't be covered by vitest mocks alone.
 
 ## eBay-Specific Notes
 
