@@ -13,6 +13,7 @@ import * as searchListings from "./tools/searchListings.js";
 import * as visionDetect from "./tools/visionDetect.js";
 import * as geminiResearch from "./tools/geminiResearch.js";
 import * as uploadImage from "./tools/uploadImage.js";
+import * as uploadVideo from "./tools/uploadVideo.js";
 import * as createItem from "./tools/createItem.js";
 import * as createMerchantLocation from "./tools/createMerchantLocation.js";
 import * as createOffer from "./tools/createOffer.js";
@@ -35,6 +36,7 @@ const tools = [
   visionDetect,
   geminiResearch,
   uploadImage,
+  uploadVideo,
   createItem,
   createMerchantLocation,
   createOffer,
