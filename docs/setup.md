@@ -36,7 +36,8 @@ Fill in `mcp-server/.env`. Required values:
 | `EBAY_MERCHANT_LOCATION_KEY` | Set to `default-location` (see step 5) |
 | `GOOGLE_VISION_API_KEY` | console.cloud.google.com → APIs & Services → Credentials |
 | `GEMINI_API_KEY` | ai.google.dev |
-| `GEMINI_MODEL` | e.g. `gemini-2.0-flash` |
+| `GEMINI_MODEL` | e.g. `gemini-3.1-flash-lite` — text/research model |
+| `GEMINI_IMAGE_MODEL` | e.g. `gemini-3.1-flash-image` — photo enhancement model (see [photo-preparation.md](photo-preparation.md)) |
 | `ETSY_API_KEY` / `ETSY_CLIENT_ID` | etsy.com/developers/your-apps (same value for both) |
 | `ETSY_REFRESH_TOKEN` | Complete the Etsy OAuth flow (scopes: `listings_w listings_r`) |
 | `ETSY_SHOP_ID` | Numeric ID visible in Etsy Shop Manager URL |
