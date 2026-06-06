@@ -40,6 +40,10 @@ export const definition = {
   },
 };
 
+function toTitleCase(text: string): string {
+  return text.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function escapeXml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -55,7 +59,7 @@ function buildLabelSvg(
   height: number,
   fontBase64: string | null
 ): Buffer {
-  const fontSize = 100;
+  const fontSize = 60;
   const x = 30;
   const y = 30 + fontSize;
 
@@ -67,19 +71,28 @@ function buildLabelSvg(
     : "Impact, Arial Black, sans-serif";
 
   // Render stroke first (behind), then fill on top — reliable across all SVG renderers
+  const displayLabel = escapeXml(toTitleCase(label));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
 ${fontFaceBlock}
 <text x="${x}" y="${y}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="900"
-  fill="none" stroke="black" stroke-width="10" stroke-linejoin="round">${escapeXml(label)}</text>
+  fill="none" stroke="black" stroke-width="10" stroke-linejoin="round">${displayLabel}</text>
 <text x="${x}" y="${y}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="900"
-  fill="white">${escapeXml(label)}</text>
+  fill="white">${displayLabel}</text>
 </svg>`;
 
   return Buffer.from(svg);
 }
 
+function buildEnhancementPrompt(label: string): string {
+  if (/\buv\b/i.test(label)) {
+    return "This is a UV light photo taken under ultraviolet illumination. Enhance clarity, sharpness, and contrast while fully preserving the UV fluorescence colors — do not correct the white balance, do not shift colors toward daylight tones, and do not attempt to make the image look like a normal lit photo. Return a clean, sharp UV fluorescence photo.";
+  }
+  return "Enhance this item photo for a marketplace listing. Improve brightness, contrast, and white balance. Boost color saturation moderately. Crop and straighten to center the subject. Return a clean, well-lit product photo.";
+}
+
 async function enhanceWithGemini(
   imagePath: string,
+  label: string,
   apiKey: string,
   model: string
 ): Promise<Buffer> {
@@ -92,10 +105,7 @@ async function enhanceWithGemini(
       {
         parts: [
           { inlineData: { mimeType, data: base64Image } },
-          {
-            text:
-              "Enhance this item photo for a marketplace listing. Improve brightness, contrast, and white balance. Boost color saturation moderately. Crop and straighten to center the subject. Return a clean, well-lit product photo.",
-          },
+          { text: buildEnhancementPrompt(label) },
         ],
       },
     ],
@@ -163,7 +173,7 @@ export async function handler(args: Record<string, unknown>) {
 
   for (const photo of photos) {
     try {
-      const enhancedBytes = await enhanceWithGemini(photo.imagePath, apiKey, model);
+      const enhancedBytes = await enhanceWithGemini(photo.imagePath, photo.label, apiKey, model);
 
       const { width = 1024, height = 1024 } = await sharp(enhancedBytes).metadata();
       const labelSvg = buildLabelSvg(photo.label, width, height, fontBase64);

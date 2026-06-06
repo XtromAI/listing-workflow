@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import axios from "axios";
 import * as fs from "fs";
+import * as path from "path";
 import { handler, definition } from "../../tools/prepareListingPhoto.js";
 
 vi.mock("axios");
@@ -163,6 +164,44 @@ describe("prepare_listing_photo", () => {
       expect(imagePart?.inlineData.mimeType).toBe("image/png");
     });
 
+    it("sends a standard enhancement prompt for a normal photo", async () => {
+      await handler({
+        photos: [{ imagePath: "/fake/item.jpg", label: "front" }],
+        outputDir: "/out",
+      });
+
+      const [, body] = mockAxios.post.mock.calls[0];
+      const parts = (body as { contents: Array<{ parts: Array<{ text?: string }> }> }).contents[0].parts;
+      const textPart = parts.find((p) => p.text);
+      expect(textPart?.text).toContain("white balance");
+      expect(textPart?.text).not.toContain("UV");
+    });
+
+    it("sends a UV-preserving prompt when the label contains 'uv'", async () => {
+      await handler({
+        photos: [{ imagePath: "/fake/item.jpg", label: "UV light" }],
+        outputDir: "/out",
+      });
+
+      const [, body] = mockAxios.post.mock.calls[0];
+      const parts = (body as { contents: Array<{ parts: Array<{ text?: string }> }> }).contents[0].parts;
+      const textPart = parts.find((p) => p.text);
+      expect(textPart?.text).toContain("UV fluorescence");
+      expect(textPart?.text).not.toContain("well-lit product photo");
+    });
+
+    it("uses the UV prompt case-insensitively (e.g. 'uv light')", async () => {
+      await handler({
+        photos: [{ imagePath: "/fake/item.jpg", label: "uv light" }],
+        outputDir: "/out",
+      });
+
+      const [, body] = mockAxios.post.mock.calls[0];
+      const parts = (body as { contents: Array<{ parts: Array<{ text?: string }> }> }).contents[0].parts;
+      const textPart = parts.find((p) => p.text);
+      expect(textPart?.text).toContain("UV");
+    });
+
     it("requests IMAGE in responseModalities", async () => {
       await handler({
         photos: [{ imagePath: "/fake/item.jpg", label: "front" }],
@@ -240,6 +279,28 @@ describe("prepare_listing_photo", () => {
       expect(fontReadCall).toBeDefined();
     });
 
+    it("renders label as title case in the SVG overlay", async () => {
+      await handler({
+        photos: [{ imagePath: "/fake/item.jpg", label: "glass one — uv light" }],
+        outputDir: "/out",
+      });
+
+      const svgBuffer = mockComposite.mock.calls[0][0][0].input as Buffer;
+      const svgText = svgBuffer.toString("utf8");
+      expect(svgText).toContain("Glass One — Uv Light");
+    });
+
+    it("uses font size 60 in the SVG overlay", async () => {
+      await handler({
+        photos: [{ imagePath: "/fake/item.jpg", label: "front" }],
+        outputDir: "/out",
+      });
+
+      const svgBuffer = mockComposite.mock.calls[0][0][0].input as Buffer;
+      const svgText = svgBuffer.toString("utf8");
+      expect(svgText).toContain('font-size="60"');
+    });
+
     it("continues without font when font file does not exist", async () => {
       mockFs.existsSync.mockReturnValue(false);
 
@@ -271,7 +332,7 @@ describe("prepare_listing_photo", () => {
       });
 
       const writeCalls = mockFs.writeFileSync.mock.calls as Array<[string, unknown]>;
-      expect(writeCalls[0][0]).toBe("/out/item_prepared.jpg");
+      expect(writeCalls[0][0]).toBe(path.join("/out", "item_prepared.jpg"));
     });
 
     it("returns processed count and results array on success", async () => {
@@ -283,7 +344,7 @@ describe("prepare_listing_photo", () => {
       expect(result.processed).toBe(1);
       expect(result.failed).toBe(0);
       expect(result.results[0].input).toBe("/fake/item.jpg");
-      expect(result.results[0].output).toBe("/out/item_prepared.jpg");
+      expect(result.results[0].output).toBe(path.join("/out", "item_prepared.jpg"));
       expect(result.results[0].label).toBe("front");
     });
 
