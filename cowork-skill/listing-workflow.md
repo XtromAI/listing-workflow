@@ -112,12 +112,21 @@ If the user says **no**, stop here without moving any files. Do not proceed to P
 If the user says **yes**, proceed:
 
 **1. Create the item subfolder inside `drafts\`.**
-Sanitize the item title from Step 4: lowercase, replace spaces with hyphens, strip characters invalid in folder names (`\ / : * ? " < > |`), trim to 50 characters. Create the folder `drafts\[sanitized-title]\` inside the existing `drafts\` directory.
+Sanitize the item title from Step 4: lowercase, replace spaces with hyphens, strip characters invalid in folder names (`\ / : * ? " < > |`), trim to 50 characters. Create the folder `drafts\[sanitized-title]\` inside the existing `drafts\` directory. Also create `drafts\[sanitized-title]\originals\` and `drafts\[sanitized-title]\processed\`.
 
-**2. Move all photos.**
-Move every image from `Inbox\` into `drafts\[sanitized-title]\`. Confirm all files moved successfully.
+**2. Move originals.**
+Move every image from `Inbox\` into `drafts\[sanitized-title]\originals\`. Confirm all files moved successfully.
 
-**3. Create the item log.**
+**3. Prepare listing photos.**
+Using your Step 2 visual assessment, assign a short descriptive label to each photo based on what it shows — e.g. `"front"`, `"back"`, `"base — maker mark"`, `"UV light"`, `"detail — handle"`, `"side"`. Labels should be concise (2–4 words max) and identify the angle or feature, not the item name.
+
+Call `prepare_listing_photo` with:
+- `photos`: array of `{ imagePath, label }` using the paths in `originals\`
+- `outputDir`: `drafts\[sanitized-title]\processed\`
+
+If the tool returns any errors for individual photos, note them and continue — the originals are preserved. Report the count of processed vs. failed images to the user.
+
+**5. Create the item log.**
 Write a file `drafts\[sanitized-title]\item-log.md`. This file is an append-only log; each entry has a header with entry number, type, and date. The first entry is the research summary:
 
 ```
@@ -165,7 +174,7 @@ Each future entry follows this header format:
 [Entry content]
 ```
 
-**4. Stop and report.**
+**6. Stop and report.**
 Tell the user the drafts folder path and the item log path. Do not proceed to Phase 2. Wait for the user to say they want to create a listing.
 
 ---
@@ -276,7 +285,7 @@ Wait for explicit approval before proceeding. Do not call any posting tools yet.
 
 ### eBay Posting
 
-For each photo in `drafts\[sanitized-title]\` (images only, not the research summary):
+For each photo in `drafts\[sanitized-title]\processed\` (use `drafts\[sanitized-title]\originals\` as fallback if `processed\` is empty):
 - Call `ebay_upload_image` to get the hosted image URL.
 
 Generate a SKU: `item-[YYYYMMDD]-[random 4 digits]`
@@ -309,7 +318,7 @@ Call `etsy_create_draft_listing` with:
 
 Save the returned `listingId`.
 
-For each photo in `drafts\[sanitized-title]\` (images only), call `etsy_upload_listing_image` with:
+For each photo in `drafts\[sanitized-title]\processed\` (use `drafts\[sanitized-title]\originals\` as fallback if `processed\` is empty), call `etsy_upload_listing_image` with:
 - `listingId` (from above)
 - `imagePath` (absolute path)
 - `rank` (1 for the primary image, 2, 3, etc. for additional photos)

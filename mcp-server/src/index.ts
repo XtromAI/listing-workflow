@@ -18,6 +18,7 @@ import * as createMerchantLocation from "./tools/createMerchantLocation.js";
 import * as createOffer from "./tools/createOffer.js";
 import * as publishOffer from "./tools/publishOffer.js";
 import * as deleteOffer from "./tools/deleteOffer.js";
+import * as prepareListingPhoto from "./tools/prepareListingPhoto.js";
 
 import * as etsyGetTaxonomyNodes from "./tools/etsy/getTaxonomyNodes.js";
 import * as etsyGetTaxonomyNodeProperties from "./tools/etsy/getTaxonomyNodeProperties.js";
@@ -39,6 +40,7 @@ const tools = [
   createOffer,
   publishOffer,
   deleteOffer,
+  prepareListingPhoto,
   // Etsy tools
   etsyGetTaxonomyNodes,
   etsyGetTaxonomyNodeProperties,
