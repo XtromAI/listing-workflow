@@ -147,7 +147,8 @@ export async function handler(args: Record<string, unknown>) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { error: "GEMINI_API_KEY not configured" };
 
-  const model = process.env.GEMINI_IMAGE_MODEL ?? "gemini-3.1-flash-image";
+  const model = process.env.GEMINI_IMAGE_MODEL;
+  if (!model) return { error: "GEMINI_IMAGE_MODEL not configured — add it to your .env file" };
 
   fs.mkdirSync(outputDir, { recursive: true });
 
