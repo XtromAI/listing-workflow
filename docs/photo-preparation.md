@@ -6,11 +6,13 @@ The `prepare_listing_photo` tool automates the manual process of enhancing item 
 
 ## When it runs
 
-During **Phase 1, Step 6** — after research is complete and the user approves saving a draft — Claude asks:
+During **Phase 1, Step 6** — after research is complete and the user approves saving a draft — Claude asks both questions together in a single message:
 
-> "Would you like me to enhance the photos using Gemini and add labels to each one? Or have the photos already been processed?"
+> "Would you like me to enhance the photos using Gemini (auto-adjust brightness, contrast, saturation, cropping) and add labels to each one? Or have the photos already been processed?
+>
+> Also — do you have any context about the photos that would help me label them accurately? For example, which shot was taken under UV light, which shows a specific marking, or anything else I might not have been able to tell from looking."
 
-If you say **yes**, the tool runs on all photos before they are archived. If you say **no** (because you already processed them manually), the step is skipped entirely and your photos are used as-is.
+If you say **yes**, the tool runs on all photos before they are archived. You can optionally provide labeling hints in the same reply (e.g. "yes, and the last photo is the UV shot"). If you say **no** (because you already processed them manually), the step is skipped entirely and your photos are used as-is.
 
 ---
 
@@ -23,17 +25,19 @@ Inbox/photo1.jpg  ──►  Gemini enhancement  ──►  Sharp label composit
 
 ### 1. Claude generates labels
 
-Before calling the tool, Claude reviews its own visual assessment from Step 2 and assigns a short label to each photo based on what it observed — for example:
+Before calling the tool, Claude combines two sources to assign a label to each photo:
 
-| Photo | Generated label |
-|---|---|
-| Close-up of base | `"base — maker mark"` |
-| Item facing forward | `"front"` |
-| Item from the back | `"back"` |
-| Shot under UV light | `"UV light"` |
-| Close-up of handle | `"detail — handle"` |
+1. **Your input** — any context you provided when asked (e.g. "the third photo is the UV shot, the last one shows the hallmark on the base"). This takes priority.
+2. **Step 2 visual assessment** — Claude's own observations from examining each photo earlier in the workflow, used to fill in anything you didn't specify.
 
-You never provide these manually. Claude derives them from what it already knows about each photo.
+| Photo | Label source | Example label |
+|---|---|---|
+| You said "last photo is UV light" | User input | `"UV light"` |
+| Claude saw a close-up of the base marking | Visual assessment | `"base — maker mark"` |
+| Claude saw the item facing forward | Visual assessment | `"front"` |
+| Claude saw a close-up of the handle | Visual assessment | `"detail — handle"` |
+
+If you don't provide any context, Claude labels everything from its visual assessment alone. If your description conflicts with what Claude saw, your description wins.
 
 ### 2. Originals are moved first
 
@@ -102,7 +106,7 @@ drafts/
 | Image processing | [Sharp](https://sharp.pixelplumbing.com/) (libvips) | Read/write JPEG/PNG, SVG compositing, final JPEG encoding |
 | Label rendering | SVG + Anton font | Meme-style white text with black stroke, composited at the pixel level |
 | Font | [Anton](https://fonts.google.com/specimen/Anton) (bundled TTF) | Condensed heavy display font, SIL Open Font License |
-| Label generation | Claude (Step 2 visual assessment) | Claude reads its own photo notes to name each shot — no user input needed |
+| Label generation | Claude (user input + Step 2 visual assessment) | User-provided context takes priority; Claude fills gaps from its own photo observations |
 
 ### Why Gemini for enhancement rather than Sharp filters alone?
 
