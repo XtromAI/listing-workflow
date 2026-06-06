@@ -118,13 +118,15 @@ Sanitize the item title from Step 4: lowercase, replace spaces with hyphens, str
 Move every image from `Inbox\` into `drafts\[sanitized-title]\originals\`. Confirm all files moved successfully.
 
 **3. Ask about photo processing.**
-Ask the user:
+Ask the user both questions together in one message:
 
-> "Would you like me to enhance the photos using Gemini (auto-adjust brightness, contrast, saturation, cropping) and add labels to each one? Or have the photos already been processed?"
+> "Would you like me to enhance the photos using Gemini (auto-adjust brightness, contrast, saturation, cropping) and add labels to each one? Or have the photos already been processed?
+>
+> Also — do you have any context about the photos that would help me label them accurately? For example, which shot was taken under UV light, which shows a specific marking, or anything else I might not have been able to tell from looking."
 
 If the user says **no / already processed**, skip to step 4 — leave `processed\` empty and the workflow will use `originals\` for listing uploads.
 
-If the user says **yes**, proceed: using your Step 2 visual assessment, assign a short descriptive label to each photo based on what it shows — e.g. `"front"`, `"back"`, `"base — maker mark"`, `"UV light"`, `"detail — handle"`, `"side"`. Labels should be concise (2–4 words max) and identify the angle or feature, not the item name.
+If the user says **yes**, incorporate any labeling context the user provided, then use your Step 2 visual assessment to assign a short descriptive label to each photo — e.g. `"front"`, `"back"`, `"base — maker mark"`, `"UV light"`, `"detail — handle"`, `"side"`. User-provided context takes priority over your own assessment when the two differ. Labels should be concise (2–4 words max) and identify the angle or feature, not the item name.
 
 Call `prepare_listing_photo` with:
 - `photos`: array of `{ imagePath, label }` using the paths in `originals\`
