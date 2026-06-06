@@ -7,8 +7,9 @@
 // Reads GEMINI_API_KEY and GEMINI_IMAGE_MODEL from mcp-server/.env (or the environment).
 // Writes test output to /tmp/prepare-listing-photo-test/ and cleans up on success.
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
-import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { fileURLToPath, pathToFileURL } from "url";
+import { createRequire } from "module";
 import { dirname, join } from "path";
 
 // Minimal .env loader
@@ -72,9 +73,12 @@ function escapeXml(text) {
 // ── 1. Create a test source JPEG using Sharp ──────────────────────────────────
 
 console.log("--- 1. Create test source image ---");
+// Resolve sharp from mcp-server/node_modules so the script can run from the repo root
 let sharp;
 try {
-  sharp = (await import("sharp")).default;
+  const mcpRequire = createRequire(join(root, "mcp-server", "package.json"));
+  const sharpEntry = mcpRequire.resolve("sharp");
+  sharp = (await import(pathToFileURL(sharpEntry).href)).default;
 } catch {
   console.error("FAIL  Could not import sharp — run `npm install` in mcp-server/ first");
   process.exit(1);
