@@ -87,7 +87,7 @@ function buildEnhancementPrompt(label: string): string {
   if (/\buv\b/i.test(label)) {
     return "This is a UV light photo taken under ultraviolet illumination. Enhance clarity, sharpness, and contrast while fully preserving the UV fluorescence colors — do not correct the white balance, do not shift colors toward daylight tones, and do not attempt to make the image look like a normal lit photo. Return a clean, sharp UV fluorescence photo.";
   }
-  return "Enhance this item photo for a marketplace listing. Improve brightness, contrast, and white balance. Boost color saturation moderately. Crop and straighten to center the subject. Return a clean, well-lit product photo.";
+  return "Enhance this item photo for a marketplace listing. Improve brightness, contrast, and white balance. Boost color saturation moderately. Do not change the composition, orientation, or position of the item. Do not remove, replace, or significantly alter the background. Do not repose or rerender the item. Preserve all physical details exactly as photographed — including any wear, markings, stickers, or condition details. Return the original photo with only tonal and color corrections applied.";
 }
 
 async function enhanceWithGemini(

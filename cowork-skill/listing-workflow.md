@@ -120,16 +120,20 @@ Move every image from `Inbox\` into `drafts\[sanitized-title]\originals\`. Confi
 **3. Ask about photo processing.**
 Ask the user both questions together in one message:
 
-> "Would you like me to enhance the photos using Gemini (auto-adjust brightness, contrast, saturation, cropping) and add labels to each one? Or have the photos already been processed?
->
-> Also — do you have any context about the photos that would help me label them accurately? For example, which shot was taken under UV light, which shows a specific marking, or anything else I might not have been able to tell from looking."
+> "Would you like me to enhance the photos using Gemini (auto-adjust brightness, contrast, saturation, cropping)? Or have the photos already been processed?"
 
 If the user says **no / already processed**, skip to step 4 — leave `processed\` empty and the workflow will use `originals\` for listing uploads.
 
-If the user says **yes**, incorporate any labeling context the user provided, then use your Step 2 visual assessment to assign a short descriptive label to each photo — e.g. `"front"`, `"back"`, `"base — maker mark"`, `"UV light"`, `"detail — handle"`, `"side"`. User-provided context takes priority over your own assessment when the two differ. Labels should be concise (2–4 words max) and identify the angle or feature, not the item name.
+If the user says **yes**, ask them if they want to add labels to the photos:
 
-Call `prepare_listing_photo` with:
-- `photos`: array of `{ imagePath, label }` using the paths in `originals\`
+> "Would you like to add labels to each photo? If yes, list them in alphabetical order of the filenames. If no, I'll enhance them without labels."
+
+If the user says **no labels**, call `prepare_listing_photo` with:
+- `photos`: array of `{ imagePath, label: "" }` using the paths in `originals\`
+- `outputDir`: `drafts\[sanitized-title]\processed\`
+
+If the user provides labels, sort the photos in `originals\` alphabetically by filename. Match each label (in the order provided by the user) to the corresponding sorted photo. Call `prepare_listing_photo` with:
+- `photos`: array of `{ imagePath, label }` using the alphabetically-sorted paths and user-provided labels
 - `outputDir`: `drafts\[sanitized-title]\processed\`
 
 If the tool returns any errors for individual photos, note them and continue — the originals are preserved. Report the count of processed vs. failed images to the user.
